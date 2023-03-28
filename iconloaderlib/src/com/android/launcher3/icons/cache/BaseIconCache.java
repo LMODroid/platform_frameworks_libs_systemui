@@ -337,11 +337,26 @@ public abstract class BaseIconCache {
 
     @NonNull
     public synchronized BitmapInfo getDefaultIcon(@NonNull final UserHandle user) {
-        try (BaseIconFactory li = getIconFactory()) {
-            if (mDefaultIcon == null) {
+        if (mDefaultIcon == null) {
+            try (BaseIconFactory li = getIconFactory()) {
                 mDefaultIcon = li.makeDefaultIcon();
             }
-            return mDefaultIcon.withUser(user, li);
+        }
+        return mDefaultIcon.withFlags(getUserFlagOpLocked(user));
+    }
+
+    @NonNull
+    protected FlagOp getUserFlagOpLocked(@NonNull final UserHandle user) {
+        int key = user.hashCode();
+        int index;
+        if ((index = mUserFlagOpMap.indexOfKey(key)) >= 0) {
+            return mUserFlagOpMap.valueAt(index);
+        } else {
+            try (BaseIconFactory li = getIconFactory()) {
+                FlagOp op = li.getBitmapFlagOp(new IconOptions().setUser(user));
+                mUserFlagOpMap.put(key, op);
+                return op;
+            }
         }
     }
 
@@ -632,9 +647,7 @@ public abstract class BaseIconCache {
             }
         }
         entry.bitmap.flags = c.getInt(IconDB.INDEX_FLAGS);
-        try (BaseIconFactory factory = getIconFactory()) {
-            entry.bitmap = entry.bitmap.withUser(cacheKey.user, factory);
-        }
+        entry.bitmap = entry.bitmap.withFlags(getUserFlagOpLocked(cacheKey.user));
         return entry.bitmap != null;
     }
 
