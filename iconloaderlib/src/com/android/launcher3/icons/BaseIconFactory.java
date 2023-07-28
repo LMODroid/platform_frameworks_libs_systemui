@@ -5,6 +5,7 @@ import static android.graphics.Paint.DITHER_FLAG;
 import static android.graphics.Paint.FILTER_BITMAP_FLAG;
 import static android.graphics.drawable.AdaptiveIconDrawable.getExtraInsetFraction;
 
+import static com.android.launcher3.icons.BitmapInfo.FLAG_CLONE;
 import static com.android.launcher3.icons.BitmapInfo.FLAG_INSTANT;
 import static com.android.launcher3.icons.ShadowGenerator.BLUR_FACTOR;
 
@@ -219,7 +220,8 @@ public class BaseIconFactory implements AutoCloseable {
         boolean shrinkNonAdaptiveIcons = options == null || options.mShrinkNonAdaptiveIcons;
         float[] scale = new float[1];
         icon = normalizeAndWrapToAdaptiveIcon(icon, shrinkNonAdaptiveIcons, null, scale);
-        Bitmap bitmap = createIconBitmap(icon, scale[0], MODE_WITH_SHADOW);
+        Bitmap bitmap = createIconBitmap(icon, scale[0],
+                options == null ? MODE_WITH_SHADOW : options.mGenerationMode);
 
         int color = (options != null && options.mExtractedColor != null)
                 ? options.mExtractedColor : mColorExtractor.findDominantColorByHue(bitmap);
@@ -521,6 +523,11 @@ public class BaseIconFactory implements AutoCloseable {
 
         boolean mIsInstantApp;
 
+        boolean mIsCloneProfile;
+
+        @BitmapGenerationMode
+        int mGenerationMode = MODE_WITH_SHADOW;
+
         @Nullable UserHandle mUserHandle;
 
         @ColorInt
@@ -559,6 +566,25 @@ public class BaseIconFactory implements AutoCloseable {
         @NonNull
         public IconOptions setExtractedColor(@ColorInt int color) {
             mExtractedColor = color;
+            return this;
+        }
+
+        /**
+         * Sets the bitmap generation mode to use for the bitmap info. Note that some generation
+         * modes do not support color extraction, so consider setting a extracted color manually
+         * in those cases.
+         */
+        public IconOptions setBitmapGenerationMode(@BitmapGenerationMode int generationMode) {
+            mGenerationMode = generationMode;
+            return this;
+        }
+
+        /**
+         * Used to determine the badge type for this icon.
+         */
+        @NonNull
+        public IconOptions setIsCloneProfile(boolean isCloneProfile) {
+            mIsCloneProfile = isCloneProfile;
             return this;
         }
     }
