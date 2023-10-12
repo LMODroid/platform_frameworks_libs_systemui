@@ -7,6 +7,7 @@ import static android.graphics.drawable.AdaptiveIconDrawable.getExtraInsetFracti
 
 import static com.android.launcher3.icons.BitmapInfo.FLAG_CLONE;
 import static com.android.launcher3.icons.BitmapInfo.FLAG_INSTANT;
+import static com.android.launcher3.icons.BitmapInfo.FLAG_WORK;
 import static com.android.launcher3.icons.ShadowGenerator.BLUR_FACTOR;
 
 import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -35,7 +36,7 @@ import android.os.Process;
 import android.os.UserHandle;
 import android.util.ArrayMap;
 import android.util.Pair;
-import android.util.SparseBooleanArray;
+import android.util.SparseArray;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.IntDef;
@@ -44,6 +45,7 @@ import androidx.annotation.Nullable;
 
 import com.android.launcher3.icons.BitmapInfo.Extender;
 import com.android.launcher3.util.FlagOp;
+import com.android.launcher3.util.UserIconInfo;
 
 import java.lang.annotation.Retention;
 import java.util.Objects;
@@ -75,7 +77,7 @@ public class BaseIconFactory implements AutoCloseable {
     private final Rect mOldBounds = new Rect();
 
     @NonNull
-    private final SparseBooleanArray mIsUserBadged = new SparseBooleanArray();
+    private final SparseArray<UserIconInfo> mCachedUserInfo = new SparseArray<>();
 
     @NonNull
     protected final Context mContext;
@@ -267,23 +269,30 @@ public class BaseIconFactory implements AutoCloseable {
                 op = op.addFlag(FLAG_INSTANT);
             }
 
-            if (options.mUserHandle != null) {
-                int key = options.mUserHandle.hashCode();
-                boolean isBadged;
-                int index;
-                if ((index = mIsUserBadged.indexOfKey(key)) >= 0) {
-                    isBadged = mIsUserBadged.valueAt(index);
-                } else {
-                    // Check packageManager if the provided user needs a badge
-                    NoopDrawable d = new NoopDrawable();
-                    isBadged = (d != mPm.getUserBadgedIcon(d, options.mUserHandle));
-                    mIsUserBadged.put(key, isBadged);
-                }
-                // Set the clone profile badge flag in case it is present.
-                op = op.setFlag(FLAG_CLONE, isBadged && options.mIsCloneProfile);
+            UserIconInfo info = options.mUserIconInfo;
+            if (info == null && options.mUserHandle != null) {
+                info = getUserInfo(options.mUserHandle);
+            }
+            if (info != null) {
+                op = op.setFlag(FLAG_WORK, info.isWork());
+                op = op.setFlag(FLAG_CLONE, info.isCloned());
             }
         }
         return op;
+    }
+
+    @NonNull
+    protected UserIconInfo getUserInfo(@NonNull UserHandle user) {
+        int key = user.hashCode();
+        UserIconInfo info = mCachedUserInfo.get(key);
+        if (info == null) {
+            // Simple check to check if the provided user is work profile or not based on badging
+            NoopDrawable d = new NoopDrawable();
+            boolean isWork = (d != mPm.getUserBadgedIcon(d, user));
+            info = new UserIconInfo(user, isWork ? UserIconInfo.TYPE_WORK : UserIconInfo.TYPE_MAIN);
+            mCachedUserInfo.put(key, info);
+        }
+        return info;
     }
 
     @NonNull
@@ -578,6 +587,8 @@ public class BaseIconFactory implements AutoCloseable {
         int mGenerationMode = MODE_WITH_SHADOW;
 
         @Nullable UserHandle mUserHandle;
+        @Nullable
+        UserIconInfo mUserIconInfo;
 
         @ColorInt
         @Nullable Integer mExtractedColor;
@@ -597,6 +608,15 @@ public class BaseIconFactory implements AutoCloseable {
         @NonNull
         public IconOptions setUser(@Nullable final UserHandle user) {
             mUserHandle = user;
+            return this;
+        }
+
+        /**
+         * User for this icon, in case of badging
+         */
+        @NonNull
+        public IconOptions setUser(@Nullable final UserIconInfo user) {
+            mUserIconInfo = user;
             return this;
         }
 
