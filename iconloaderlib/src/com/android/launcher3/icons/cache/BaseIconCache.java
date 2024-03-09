@@ -369,6 +369,21 @@ public abstract class BaseIconCache {
         }
     }
 
+    @NonNull
+    protected FlagOp getUserFlagOpLocked(@NonNull final UserHandle user) {
+        int key = user.hashCode();
+        int index;
+        if ((index = mUserFlagOpMap.indexOfKey(key)) >= 0) {
+            return mUserFlagOpMap.valueAt(index);
+        } else {
+            try (BaseIconFactory li = getIconFactory()) {
+                FlagOp op = li.getBitmapFlagOp(new IconOptions().setUser(user));
+                mUserFlagOpMap.put(key, op);
+                return op;
+            }
+        }
+    }
+
     public boolean isDefaultIcon(@NonNull final BitmapInfo icon, @NonNull final UserHandle user) {
         return getDefaultIcon(user).icon == icon.icon;
     }

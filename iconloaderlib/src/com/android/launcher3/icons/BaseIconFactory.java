@@ -239,8 +239,12 @@ public class BaseIconFactory implements AutoCloseable {
                 info.setMonoIcon(createIconBitmap(mono, scale[0], MODE_ALPHA), this);
             }
         }
-        if (options != null && options.mUserHandle != null) {
-            info.setUser(options.mUserHandle, this);
+        if (options != null) {
+            final UserHandle user = options.mUserHandle != null ? options.mUserHandle
+                    : (options.mUserIconInfo != null ? options.mUserIconInfo.user : null);
+            if (user != null) {
+                info.setUser(user, this);
+            }
         }
         info = info.withFlags(getBitmapFlagOp(options));
         return info;
