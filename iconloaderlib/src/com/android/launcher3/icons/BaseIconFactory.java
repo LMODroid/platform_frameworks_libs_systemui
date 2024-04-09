@@ -233,7 +233,7 @@ public class BaseIconFactory implements AutoCloseable {
 
         if (icon instanceof BitmapInfo.Extender) {
             info = ((BitmapInfo.Extender) icon).getExtendedInfo(bitmap, color, this, scale[0]);
-        } else if (IconProvider.ATLEAST_T && mMonoIconEnabled) {
+        } else if (mMonoIconEnabled) {
             Drawable mono = getMonochromeDrawable(icon);
             if (mono != null) {
                 info.setMonoIcon(createIconBitmap(mono, scale[0], MODE_ALPHA), this);
@@ -248,6 +248,10 @@ public class BaseIconFactory implements AutoCloseable {
         }
         info = info.withFlags(getBitmapFlagOp(options));
         return info;
+    }
+    
+    public void setMonoIconEnabled(boolean enabled) {
+        mMonoIconEnabled = enabled;
     }
 
     /**

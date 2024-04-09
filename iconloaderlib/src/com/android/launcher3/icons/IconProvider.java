@@ -116,6 +116,21 @@ public class IconProvider implements ResourceBasedOverride {
     public Drawable getIcon(ActivityInfo info) {
         return getIcon(info, mContext.getResources().getConfiguration().densityDpi);
     }
+    
+    /**
+     * Loads the icon for the provided activity info
+     */
+    public Drawable getIcon(ActivityInfo info, String themedIconPack) {
+        return getIcon(info, mContext.getResources().getConfiguration().densityDpi, themedIconPack);
+    }
+
+    /**
+     * Loads the icon for the provided activity info
+     */
+    public Drawable getIcon(ActivityInfo info, int iconDpi, String themedIconPack) {
+        return getIconWithOverrides(info.applicationInfo.packageName, iconDpi,
+                () -> loadActivityInfoIcon(info, iconDpi), themedIconPack);
+    }
 
     /**
      * Loads the icon for the provided activity info
