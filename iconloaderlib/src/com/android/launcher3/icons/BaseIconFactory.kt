@@ -29,6 +29,7 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.InsetDrawable
 import android.os.UserHandle
+import android.util.Pair
 import android.util.SparseArray
 import androidx.annotation.ColorInt
 import androidx.annotation.IntDef
@@ -64,6 +65,14 @@ constructor(
 ) : AutoCloseable {
 
     private val cachedUserInfo = SparseArray<UserIconInfo>()
+
+    // User badges by size, e.g. workspace badge (large) vs widget badge (small). A cache, so keep it
+    // small: a couple of sizes times the number of profiles.
+    private val userBadges =
+        object : LinkedHashMap<Pair<UserHandle, Int>, Drawable>() {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Pair<UserHandle, Int>, Drawable>?) =
+                size > MAX_USER_BADGES
+        }
 
     private val shadowGenerator: ShadowGenerator by lazy { ShadowGenerator(iconBitmapSize) }
 
@@ -201,6 +210,7 @@ constructor(
         if (icon is Extender) {
             info = icon.getUpdatedBitmapInfo(info, this)
         }
+        (options.userHandle ?: options.userIconInfo?.user)?.let { info = info.withUser(it, this) }
 
         if (IconProvider.ATLEAST_T && themeController != null) {
             info =
@@ -356,6 +366,41 @@ constructor(
 
     protected fun clear() {}
 
+    @JvmOverloads
+    fun getBadgeForUser(user: UserHandle, iconSize: Int = iconBitmapSize): Drawable {
+        val badgeSize = getBadgeSizeForIconSize(iconSize)
+        require(badgeSize <= iconBitmapSize) {
+            "badgeSize cannot be larger than iconBitmapSize: got $badgeSize, expected <= $iconBitmapSize"
+        }
+        val key = Pair(user, badgeSize)
+        synchronized(userBadges) {
+            userBadges[key]?.let { return it }
+            // getUserBadgedDrawableForDensity draws a badge larger than the badge circle and
+            // getUserBadgeForDensity is hidden, so badge a full size icon and crop the corner.
+            val res = context.resources
+            var badged = Bitmap.createBitmap(iconBitmapSize, iconBitmapSize, ARGB_8888)
+            val drawable = context.packageManager.getUserBadgedIcon(BitmapDrawable(res, badged), user)
+            if (drawable is BitmapDrawable) {
+                badged = drawable.bitmap
+            } else {
+                badged.eraseColor(Color.TRANSPARENT)
+                val c = Canvas(badged)
+                drawable.setBounds(0, 0, badgeSize, badgeSize)
+                drawable.draw(c)
+                c.setBitmap(null)
+            }
+            val offset = max(iconBitmapSize - badgeSize, 0)
+            val badge =
+                BitmapDrawable(res, Bitmap.createBitmap(badged, offset, offset, badgeSize, badgeSize))
+                    .apply {
+                        isFilterBitmap = true
+                        setBounds(0, 0, badgeSize, badgeSize)
+                    }
+            userBadges[key] = badge
+            return badge
+        }
+    }
+
     fun makeDefaultIcon(iconProvider: IconProvider): BitmapInfo {
         return createBadgedIconBitmap(iconProvider.getFullResDefaultActivityIcon(fullResIconDpi))
     }
@@ -479,6 +524,8 @@ constructor(
         annotation class BitmapGenerationMode
 
         private const val ICON_BADGE_SCALE = 0.444f
+
+        private const val MAX_USER_BADGES = 50
 
         private val PLACEHOLDER_BACKGROUND_COLOR = Color.rgb(245, 245, 245)
 
