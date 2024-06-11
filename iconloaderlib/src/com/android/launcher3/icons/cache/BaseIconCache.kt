@@ -237,10 +237,10 @@ constructor(
 
     @Synchronized
     fun getDefaultIcon(user: UserHandle): BitmapInfo {
-        if (defaultIcon == null) {
-            iconFactory.use { li -> defaultIcon = li.makeDefaultIcon(iconProvider) }
+        return iconFactory.use { li ->
+            defaultIcon = defaultIcon ?: li.makeDefaultIcon(iconProvider)
+            defaultIcon!!.withUser(user, li)
         }
-        return defaultIcon!!.withFlags(getUserFlagOpLocked(user))
     }
 
     protected fun getUserFlagOpLocked(user: UserHandle): FlagOp {
