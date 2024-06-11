@@ -17,6 +17,8 @@
 */
 -->
 <resources>
+    <!-- Fallback colors specified in main colors.xml
     <color name="themed_badge_icon_color">@android:color/system_accent1_700</color>
     <color name="themed_badge_icon_background_color">@android:color/system_accent1_100</color>
+    -->
 </resources>
