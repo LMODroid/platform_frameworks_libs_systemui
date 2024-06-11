@@ -18,6 +18,8 @@ package com.android.launcher3.icons
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import android.os.Process
+import android.os.UserHandle
 import androidx.annotation.IntDef
 import com.android.launcher3.BadgeProvider
 import com.android.launcher3.BadgeProvider.BadgeType
@@ -39,6 +41,8 @@ import com.android.launcher3.util.FlagOp
  * @property themedBitmap theming information if the icon is created using [FLAG_THEMED]
  * @property delegateFactory factory used for icon creation
  * @property badgeInfo optional badge drawn on the icon
+ * @property user the profile of the icon; its badge comes from the system, so every work profile
+ *   gets its own badge color
  */
 data class BitmapInfo(
     @JvmField val icon: Bitmap,
@@ -49,6 +53,8 @@ data class BitmapInfo(
     val badgeInfo: BitmapInfo? = null,
     val delegateFactory: DelegateFactory = SimpleDelegateFactory,
     val badgeProvider: BadgeProvider = DefaultBadgeProvider,
+    val user: UserHandle? = null,
+    private val userBadge: Drawable? = null,
 ) {
     @IntDef(
         flag = true,
@@ -71,6 +77,14 @@ data class BitmapInfo(
     annotation class DrawableCreationFlags
 
     fun withBadgeInfo(badgeInfo: BitmapInfo?) = copy(badgeInfo = badgeInfo)
+
+    /** Returns a bitmapInfo badged with the system badge of [user] (none for the current user) */
+    fun withUser(user: UserHandle?, iconFactory: BaseIconFactory): BitmapInfo =
+        copy(
+            user = user,
+            userBadge =
+                user?.takeIf { it != Process.myUserHandle() }?.let { iconFactory.getBadgeForUser(it) },
+        )
 
     /** Returns a bitmapInfo with the flagOP applied */
     fun withFlags(op: FlagOp): BitmapInfo =
@@ -151,6 +165,9 @@ data class BitmapInfo(
         }
         if (creationFlag.hasMask(FLAG_SKIP_USER_BADGE)) {
             return null
+        } else if (userBadge != null) {
+            // A copy, so size changes (e.g. small shortcut/widget badges) don't affect other icons
+            return userBadge.constantState?.newDrawable()?.mutate() ?: userBadge
         } else {
             return getBadgeType()?.let {
                 return badgeProvider.getDrawable(context, it, creationFlag)
