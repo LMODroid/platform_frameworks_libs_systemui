@@ -105,9 +105,9 @@ public class IconProvider implements ResourceBasedOverride {
     /**
      * Loads the icon for the provided LauncherActivityInfo
      */
-    public Drawable getIcon(LauncherActivityInfo info, int iconDpi, String themedIconPack) {
+    public Drawable getIcon(LauncherActivityInfo info, int iconDpi) {
         return getIconWithOverrides(info.getApplicationInfo().packageName, iconDpi,
-                () -> info.getIcon(iconDpi), themedIconPack);
+                () -> info.getIcon(iconDpi));
     }
 
     /**
@@ -122,13 +122,13 @@ public class IconProvider implements ResourceBasedOverride {
      */
     public Drawable getIcon(ActivityInfo info, int iconDpi) {
         return getIconWithOverrides(info.applicationInfo.packageName, iconDpi,
-                () -> loadActivityInfoIcon(info, iconDpi), null);
+                () -> loadActivityInfoIcon(info, iconDpi));
     }
 
     @TargetApi(Build.VERSION_CODES.TIRAMISU)
     private Drawable getIconWithOverrides(String packageName, int iconDpi,
-            Supplier<Drawable> fallback, String themedIconPack) {
-        ThemeData td = getThemeDataForPackage(packageName, themedIconPack);
+            Supplier<Drawable> fallback) {
+        ThemeData td = getThemeDataForPackage(packageName);
 
         Drawable icon = null;
         if (mCalendar != null && mCalendar.getPackageName().equals(packageName)) {
@@ -149,7 +149,7 @@ public class IconProvider implements ResourceBasedOverride {
         return icon;
     }
 
-    protected ThemeData getThemeDataForPackage(String packageName, String themedIconPack) {
+    protected ThemeData getThemeDataForPackage(String packageName) {
         return null;
     }
 
@@ -200,7 +200,7 @@ public class IconProvider implements ResourceBasedOverride {
                 }
                 return drawable;
             }
-        } catch (NameNotFoundException e) {
+        } catch (PackageManager.NameNotFoundException e) {
             if (DEBUG) {
                 Log.d(TAG, "Could not get activityinfo or resources for package: "
                         + mCalendar.getPackageName());
