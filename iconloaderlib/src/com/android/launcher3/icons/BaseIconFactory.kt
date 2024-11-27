@@ -185,7 +185,8 @@ constructor(
                     InsetDrawable(icon, inset, inset, inset, inset),
                 )
         }
-        if (options.wrapNonAdaptiveIcon) tempIcon = wrapToAdaptiveIcon(tempIcon, options)
+        if (options.wrapNonAdaptiveIcon && !icon.changingConfigurations.hasNoWrapHint())
+            tempIcon = wrapToAdaptiveIcon(tempIcon, options)
 
         val drawFullBleed = options.drawFullBleed ?: drawFullBleedIcons
         val bitmap = drawableToBitmap(tempIcon, drawFullBleed, options)
@@ -525,6 +526,11 @@ constructor(
         private const val ICON_BADGE_SCALE = 0.444f
 
         private const val MAX_USER_BADGES = 50
+
+        /** Set in a drawable's changing configurations to keep it unwrapped (icon pack icons) */
+        const val CONFIG_HINT_NO_WRAP = 0x1000000
+
+        private fun Int.hasNoWrapHint() = (this and CONFIG_HINT_NO_WRAP) != 0
 
         private val PLACEHOLDER_BACKGROUND_COLOR = Color.rgb(245, 245, 245)
 
