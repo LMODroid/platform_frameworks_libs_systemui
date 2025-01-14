@@ -64,7 +64,7 @@ constructor(
     private var iconDpi: Int,
     iconPixelSize: Int,
     inMemoryCache: Boolean,
-    val iconProvider: IconProvider = IconProvider(context),
+    val iconProvider: IconProvider = IconProvider.INSTANCE.get(context),
 ) {
     class CacheEntry {
         @JvmField var bitmap: BitmapInfo = BitmapInfo.LOW_RES_INFO
