@@ -17,6 +17,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.android.mechanics.tests">
 
+    <application android:debuggable="true">
+        <activity
+            android:name="com.android.mechanics.testing.EmptyTestActivity"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <uses-library android:name="android.test.runner" />
+    </application>
+
     <instrumentation
         android:name="androidx.test.runner.AndroidJUnitRunner"
         android:label="Tests for Motion Mechanics"

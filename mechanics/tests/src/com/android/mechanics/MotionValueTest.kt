@@ -39,13 +39,13 @@ import com.android.mechanics.spec.reverseBuilder
 import com.android.mechanics.testing.DefaultSprings.matStandardDefault
 import com.android.mechanics.testing.DefaultSprings.matStandardFast
 import com.android.mechanics.testing.MotionValueToolkit
-import com.android.mechanics.testing.MotionValueToolkit.Companion.dataPoints
-import com.android.mechanics.testing.MotionValueToolkit.Companion.input
-import com.android.mechanics.testing.MotionValueToolkit.Companion.isStable
-import com.android.mechanics.testing.MotionValueToolkit.Companion.output
 import com.android.mechanics.testing.VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
 import com.android.mechanics.testing.VerifyTimeSeriesResult.SkipGoldenVerification
+import com.android.mechanics.testing.dataPoints
 import com.android.mechanics.testing.goldenTest
+import com.android.mechanics.testing.input
+import com.android.mechanics.testing.isStable
+import com.android.mechanics.testing.output
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.coroutines.CoroutineScope

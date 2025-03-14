@@ -46,6 +46,7 @@ android_test {
         "androidx.test.runner",
         "androidx.test.ext.junit",
         "kotlin-test",
+        "testables",
         "truth",
     ],
     asset_dirs: ["goldens"],

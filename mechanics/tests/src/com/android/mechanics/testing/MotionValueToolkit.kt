@@ -33,7 +33,6 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.sign
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.NonDisposableHandle.dispose
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,34 +48,12 @@ import platform.test.motion.golden.Feature
 import platform.test.motion.golden.FrameId
 import platform.test.motion.golden.TimeSeries
 import platform.test.motion.golden.TimestampFrameId
-import platform.test.motion.golden.ValueDataPoint
 import platform.test.motion.golden.asDataPoint
 
 /** Toolkit to support [MotionValue] motion tests. */
 class MotionValueToolkit(val composeTestRule: ComposeContentTestRule) {
     companion object {
-
-        val TimeSeries.input: List<Float>
-            get() = dataPoints("input")
-
-        val TimeSeries.output: List<Float>
-            get() = dataPoints("output")
-
-        val TimeSeries.outputTarget: List<Float>
-            get() = dataPoints("outputTarget")
-
-        val TimeSeries.isStable: List<Boolean>
-            get() = dataPoints("isStable")
-
         internal const val TAG = "MotionValueToolkit"
-
-        fun <T> TimeSeries.dataPoints(featureName: String): List<T> {
-            @Suppress("UNCHECKED_CAST")
-            return (features[featureName] as Feature<T>).dataPoints.map {
-                require(it is ValueDataPoint)
-                it.value
-            }
-        }
     }
 }
 
