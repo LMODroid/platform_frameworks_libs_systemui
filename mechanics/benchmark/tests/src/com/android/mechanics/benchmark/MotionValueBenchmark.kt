@@ -18,64 +18,207 @@ package com.android.mechanics.benchmark
 
 import androidx.benchmark.junit4.BenchmarkRule
 import androidx.benchmark.junit4.measureRepeated
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.mechanics.DistanceGestureContext
 import com.android.mechanics.MotionValue
+import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.InputDirection
+import com.android.mechanics.spec.Mapping
+import com.android.mechanics.spec.MotionSpec
+import com.android.mechanics.spec.buildDirectionalMotionSpec
+import com.android.mechanics.spring.SpringParameters
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import platform.test.motion.compose.MonotonicClockTestScope
+import platform.test.motion.compose.runMonotonicClockTest
 
 /** Benchmark, which will execute on an Android device. Previous results: go/mm-microbenchmarks */
 @RunWith(AndroidJUnit4::class)
 class MotionValueBenchmark {
     @get:Rule val benchmarkRule = BenchmarkRule()
 
+    private data class TestData(
+        val motionValue: MotionValue,
+        val gestureContext: DistanceGestureContext,
+        val input: MutableFloatState,
+        val spec: MotionSpec,
+    )
+
+    private fun testData(
+        gestureContext: DistanceGestureContext = DistanceGestureContext(0f, InputDirection.Max, 2f),
+        input: Float = 0f,
+        spec: MotionSpec = MotionSpec.Empty,
+    ): TestData {
+        val inputState = mutableFloatStateOf(input)
+        return TestData(
+            motionValue = MotionValue(inputState::floatValue, gestureContext, spec),
+            gestureContext = gestureContext,
+            input = inputState,
+            spec = spec,
+        )
+    }
+
+    // Fundamental operations on MotionValue: create, read, update.
+
     @Test
     fun createMotionValue() {
         val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 2f)
-        val currentInput = { 0f }
-        benchmarkRule.measureRepeated { MotionValue(currentInput, gestureContext) }
+        val input = { 0f }
+
+        benchmarkRule.measureRepeated { MotionValue(input, gestureContext) }
     }
 
     @Test
-    fun changeInput_readOutput() {
-        val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 2f)
-        val a = mutableFloatStateOf(0f)
-        val motionValue = MotionValue(a::floatValue, gestureContext)
+    fun stable_readOutput_noChanges() {
+        val data = testData()
+
+        // The first read may cost more than the others, it is not interesting for this test.
+        data.motionValue.floatValue
+
+        benchmarkRule.measureRepeated { data.motionValue.floatValue }
+    }
+
+    @Test
+    fun stable_readOutput_afterWriteInput() {
+        val data = testData()
 
         benchmarkRule.measureRepeated {
-            runWithMeasurementDisabled { a.floatValue += 1f }
-            motionValue.floatValue
+            runWithMeasurementDisabled { data.input.floatValue += 1f }
+            data.motionValue.floatValue
         }
     }
 
     @Test
-    fun readOutputMultipleTimes() {
-        val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 2f)
-        val a = mutableFloatStateOf(0f)
-        val motionValue = MotionValue(a::floatValue, gestureContext)
+    fun stable_writeInput_AND_readOutput() {
+        val data = testData()
 
         benchmarkRule.measureRepeated {
-            runWithMeasurementDisabled {
-                a.floatValue += 1f
-                motionValue.output
+            data.input.floatValue += 1f
+            data.motionValue.floatValue
+        }
+    }
+
+    // Compose specific
+
+    @Test
+    fun writeState_1snapshotFlow() = runMonotonicClockTest {
+        val composeState = mutableFloatStateOf(0f)
+
+        var lastRead = 0f
+        snapshotFlow { composeState.floatValue }.onEach { lastRead = it }.launchIn(backgroundScope)
+
+        benchmarkRule.measureRepeated {
+            composeState.floatValue++
+            Snapshot.sendApplyNotifications()
+            testScheduler.advanceTimeBy(16)
+        }
+
+        check(lastRead == composeState.floatValue) {
+            "snapshotFlow lastRead $lastRead != ${composeState.floatValue} (current composeState)"
+        }
+    }
+
+    @Test
+    fun writeState_100snapshotFlow() = runMonotonicClockTest {
+        val composeState = mutableFloatStateOf(0f)
+
+        repeat(100) { snapshotFlow { composeState.floatValue }.launchIn(backgroundScope) }
+
+        benchmarkRule.measureRepeated {
+            composeState.floatValue++
+            Snapshot.sendApplyNotifications()
+            testScheduler.advanceTimeBy(16)
+        }
+    }
+
+    // Animations
+
+    private fun MonotonicClockTestScope.keepRunningDuringTest(motionValue: MotionValue) {
+        val keepRunningJob = launch { motionValue.keepRunning() }
+        doOnTearDown { keepRunningJob.cancel() }
+    }
+
+    private val MotionSpec.Companion.ZeroToOne_AtOne
+        get() =
+            MotionSpec(
+                buildDirectionalMotionSpec(
+                    defaultSpring = SpringParameters(stiffness = 300f, dampingRatio = .9f),
+                    initialMapping = Mapping.Zero,
+                ) {
+                    constantValue(breakpoint = 1f, value = 1f)
+                }
+            )
+
+    private val InputDirection.opposite
+        get() = if (this == InputDirection.Min) InputDirection.Max else InputDirection.Min
+
+    @Test
+    fun unstable_resetGestureContext_readOutput() = runMonotonicClockTest {
+        val data = testData(input = 1f, spec = MotionSpec.ZeroToOne_AtOne)
+        keepRunningDuringTest(data.motionValue)
+
+        benchmarkRule.measureRepeated {
+            if (data.motionValue.isStable) {
+                data.gestureContext.reset(0f, data.gestureContext.direction.opposite)
             }
-            motionValue.output
+            data.motionValue.floatValue
+            testScheduler.advanceTimeBy(16)
         }
     }
 
     @Test
-    fun readOutputMultipleTimesMeasureAll() {
-        val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 2f)
-        val currentInput = mutableFloatStateOf(0f)
-        val motionValue = MotionValue(currentInput::floatValue, gestureContext)
+    fun unstable_resetGestureContext_snapshotFlowOutput() = runMonotonicClockTest {
+        val data = testData(input = 1f, spec = MotionSpec.ZeroToOne_AtOne)
+        keepRunningDuringTest(data.motionValue)
+
+        snapshotFlow { data.motionValue.floatValue }.launchIn(backgroundScope)
 
         benchmarkRule.measureRepeated {
-            currentInput.floatValue += 1f
-            motionValue.output
-            motionValue.output
+            if (data.motionValue.isStable) {
+                data.gestureContext.reset(0f, data.gestureContext.direction.opposite)
+            }
+            testScheduler.advanceTimeBy(16)
+        }
+    }
+
+    private val MotionSpec.Companion.ZeroToOne_AtOne_WithGuarantee
+        get() =
+            MotionSpec(
+                buildDirectionalMotionSpec(
+                    defaultSpring = SpringParameters(stiffness = 300f, dampingRatio = .9f),
+                    initialMapping = Mapping.Zero,
+                ) {
+                    constantValue(
+                        breakpoint = 1f,
+                        value = 1f,
+                        guarantee = Guarantee.GestureDragDelta(1f),
+                    )
+                }
+            )
+
+    @Test
+    fun unstable_resetGestureContext_guarantee_readOutput() = runMonotonicClockTest {
+        val data = testData(input = 1f, spec = MotionSpec.ZeroToOne_AtOne_WithGuarantee)
+        keepRunningDuringTest(data.motionValue)
+
+        benchmarkRule.measureRepeated {
+            if (data.motionValue.isStable) {
+                data.gestureContext.reset(0f, data.gestureContext.direction.opposite)
+            } else {
+                val isMax = data.gestureContext.direction == InputDirection.Max
+                data.gestureContext.dragOffset += if (isMax) 0.01f else -0.01f
+            }
+
+            data.motionValue.floatValue
+            testScheduler.advanceTimeBy(16)
         }
     }
 }
