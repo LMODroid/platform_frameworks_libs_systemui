@@ -16,14 +16,36 @@
 
 package com.android.mechanics
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalViewConfiguration
 import com.android.mechanics.spec.InputDirection
 import kotlin.math.max
 import kotlin.math.min
+
+/**
+ * Remembers [DistanceGestureContext] with the given initial distance / direction.
+ *
+ * Providing update [initDistance] or [initialDirection] will not re-create the
+ * [DistanceGestureContext].
+ *
+ * The `directionChangeSlop` is derived from `ViewConfiguration.touchSlop` and kept current without
+ * re-creating, should it ever change.
+ */
+@Composable
+fun rememberDistanceGestureContext(
+    initDistance: Float = 0f,
+    initialDirection: InputDirection = InputDirection.Max,
+): DistanceGestureContext {
+    val touchSlop = LocalViewConfiguration.current.touchSlop
+    return remember { DistanceGestureContext(initDistance, initialDirection, touchSlop) }
+        .also { it.directionChangeSlop = touchSlop }
+}
 
 /**
  * Gesture-specific context to augment [MotionValue.currentInput].
