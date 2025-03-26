@@ -24,6 +24,8 @@ import com.android.mechanics.impl.DiscontinuityAnimation
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.SegmentData
 import com.android.mechanics.spec.SegmentKey
+import com.android.mechanics.spec.SemanticKey
+import com.android.mechanics.spec.SemanticValue
 import com.android.mechanics.spring.SpringParameters
 import com.android.mechanics.spring.SpringState
 import kotlinx.coroutines.DisposableHandle
@@ -78,6 +80,13 @@ internal constructor(
 
     val outputTarget: Float
         get() = currentDirectMapped + animation.targetValue
+
+    fun <T> semantic(semanticKey: SemanticKey<T>): T? {
+        return segment.semantic(semanticKey)
+    }
+
+    val semantics: List<SemanticValue<*>>
+        get() = with(segment) { spec.semantics(key) }
 
     private val currentDirectMapped: Float
         get() = segment.mapping.map(input) - animation.targetValue

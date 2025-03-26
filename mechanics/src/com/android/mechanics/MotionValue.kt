@@ -37,6 +37,7 @@ import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SegmentData
+import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spring.SpringState
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineName
@@ -139,6 +140,15 @@ class MotionValue(
 
     /** Whether an animation is currently running. */
     val isStable: Boolean by impl::isStable
+
+    /**
+     * The current value for the [SemanticKey].
+     *
+     * `null` if not defined in the spec.
+     */
+    operator fun <T> get(key: SemanticKey<T>): T? {
+        return impl.semanticState(key)
+    }
 
     /**
      * Keeps the [MotionValue]'s animated output running.

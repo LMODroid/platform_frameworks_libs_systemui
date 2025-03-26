@@ -17,9 +17,13 @@
 package com.android.mechanics.spec
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.mechanics.spec.DirectionalMotionSpecBuilderTest.Companion.S1
+import com.android.mechanics.spec.DirectionalMotionSpecBuilderTest.Companion.S2
+import com.android.mechanics.spec.DirectionalMotionSpecBuilderTest.Companion.Spring
 import com.android.mechanics.spring.SpringParameters
 import com.android.mechanics.testing.BreakpointSubject.Companion.assertThat
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertFailsWith
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -243,9 +247,83 @@ class MotionSpecTest {
             .isEqualTo(SegmentKey(Breakpoint.minLimit.key, B1, InputDirection.Min))
     }
 
+    @Test
+    fun semanticState_returnsStateFromSegment() {
+        val underTest =
+            MotionSpec(
+                maxDirection = buildDirectionalMotionSpec(semantics = listOf(S1 with "One")),
+                minDirection = buildDirectionalMotionSpec(semantics = listOf(S1 with "Two")),
+            )
+
+        val maxDirectionSegment = SegmentKey(BMin, BMax, InputDirection.Max)
+        assertThat(underTest.semanticState(S1, maxDirectionSegment)).isEqualTo("One")
+
+        val minDirectionSegment = SegmentKey(BMin, BMax, InputDirection.Min)
+        assertThat(underTest.semanticState(S1, minDirectionSegment)).isEqualTo("Two")
+    }
+
+    @Test
+    fun semanticState_unknownSegment_throws() {
+        val underTest = MotionSpec(buildDirectionalMotionSpec(semantics = listOf(S1 with "One")))
+
+        val unknownSegment = SegmentKey(BMin, B1, InputDirection.Max)
+        assertFailsWith<NoSuchElementException> { underTest.semanticState(S1, unknownSegment) }
+    }
+
+    @Test
+    fun semanticState_unknownSemantics_returnsNull() {
+        val underTest = MotionSpec(buildDirectionalMotionSpec(semantics = listOf(S1 with "One")))
+
+        val maxDirectionSegment = SegmentKey(BMin, BMax, InputDirection.Max)
+        assertThat(underTest.semanticState(S2, maxDirectionSegment)).isNull()
+    }
+
+    @Test
+    fun semantics_returnsAllValuesForSegment() {
+        val underTest =
+            MotionSpec(
+                buildDirectionalMotionSpec(
+                    Spring,
+                    semantics = listOf(S1 with "One", S2 with "AAA"),
+                ) {
+                    mapping(
+                        breakpoint = 0f,
+                        mapping = Mapping.Identity,
+                        key = B1,
+                        semantics = listOf(S2 with "BBB"),
+                    )
+                    mapping(
+                        breakpoint = 2f,
+                        mapping = Mapping.Identity,
+                        key = B2,
+                        semantics = listOf(S1 with "Two"),
+                    )
+                }
+            )
+
+        assertThat(underTest.semantics(SegmentKey(BMin, B1, InputDirection.Max)))
+            .containsExactly(S1 with "One", S2 with "AAA")
+        assertThat(underTest.semantics(SegmentKey(B1, B2, InputDirection.Max)))
+            .containsExactly(S1 with "One", S2 with "BBB")
+        assertThat(underTest.semantics(SegmentKey(B2, BMax, InputDirection.Max)))
+            .containsExactly(S1 with "Two", S2 with "BBB")
+    }
+
+    @Test
+    fun semantics_unknownSegment_throws() {
+        val underTest = MotionSpec.Empty
+        val unknownSegment = SegmentKey(BMin, B1, InputDirection.Max)
+        assertFailsWith<NoSuchElementException> { underTest.semantics(unknownSegment) }
+    }
+
     companion object {
+        val BMin = Breakpoint.minLimit.key
         val B1 = BreakpointKey("one")
         val B2 = BreakpointKey("two")
+        val BMax = Breakpoint.maxLimit.key
+        val S1 = SemanticKey<String>("Foo")
+        val S2 = SemanticKey<String>("Bar")
+
         val Spring = SpringParameters(stiffness = 100f, dampingRatio = 1f)
     }
 }

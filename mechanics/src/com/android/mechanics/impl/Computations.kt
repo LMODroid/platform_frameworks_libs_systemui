@@ -23,7 +23,9 @@ import androidx.compose.ui.util.fastIsFinite
 import androidx.compose.ui.util.lerp
 import com.android.mechanics.MotionValue.Companion.TAG
 import com.android.mechanics.spec.Guarantee
+import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SegmentData
+import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spring.SpringState
 import com.android.mechanics.spring.calculateUpdatedState
 
@@ -435,4 +437,8 @@ internal interface Computations : ComputeSpringState {
 
     val isStable: Boolean
         get() = currentSpringState == SpringState.AtRest
+
+    fun <T> semanticState(semanticKey: SemanticKey<T>): T? {
+        return with(currentSegment) { spec.semanticState(semanticKey, key) }
+    }
 }

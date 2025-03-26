@@ -27,6 +27,7 @@ import com.android.mechanics.impl.GuaranteeState
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SegmentData
+import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spring.SpringState
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.DisposableHandle
@@ -75,6 +76,15 @@ class ViewMotionValue(
      * While [isStable], [outputTarget] and [output] are the same value.
      */
     val outputTarget: Float by impl::outputTarget
+
+    /**
+     * The current value for the [SemanticKey].
+     *
+     * `null` if not defined in the spec.
+     */
+    operator fun <T> get(key: SemanticKey<T>): T? {
+        return impl.semanticState(key)
+    }
 
     /** Whether an animation is currently running. */
     val isStable: Boolean by impl::isStable

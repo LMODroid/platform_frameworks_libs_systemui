@@ -19,6 +19,7 @@ package com.android.mechanics.spec
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.mechanics.spring.SpringParameters
 import com.android.mechanics.testing.DirectionalMotionSpecSubject.Companion.assertThat
+import kotlin.test.assertFailsWith
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -162,9 +163,80 @@ class DirectionalMotionSpecBuilderTest {
             .inOrder()
     }
 
+    @Test
+    fun semantics_appliedForSingleSegment() {
+        val result =
+            buildDirectionalMotionSpec(Mapping.Identity, listOf(S1 with "One", S2 with "Two"))
+
+        assertThat(result).semantics().containsExactly(S1, S2)
+        assertThat(result).semantics().withKey(S1).containsExactly("One")
+        assertThat(result).semantics().withKey(S2).containsExactly("Two")
+    }
+
+    @Test
+    fun directionalSpec_semantics_appliedForAllSegments() {
+        val result =
+            buildDirectionalMotionSpec(Spring, semantics = listOf(S1 with "One")) {
+                mapping(breakpoint = 0f, mapping = Mapping.Identity)
+            }
+        assertThat(result).mappings().hasSize(2)
+        assertThat(result).semantics().containsExactly(S1)
+        assertThat(result).semantics().withKey(S1).containsExactly("One", "One")
+    }
+
+    @Test
+    fun directionalSpec_semantics_appliedForCurrentSegment() {
+        val result =
+            buildDirectionalMotionSpec(Spring, semantics = listOf(S1 with "One")) {
+                mapping(breakpoint = 0f, mapping = Mapping.Identity)
+                mapping(
+                    breakpoint = 2f,
+                    mapping = Mapping.Identity,
+                    semantics = listOf(S1 with "Two"),
+                )
+            }
+        assertThat(result).mappings().hasSize(3)
+        assertThat(result).semantics().withKey(S1).containsExactly("One", "One", "Two").inOrder()
+    }
+
+    @Test
+    fun directionalSpec_semantics_changingUndeclaredSemantics_throws() {
+        assertFailsWith<NoSuchElementException> {
+            buildDirectionalMotionSpec(Spring) {
+                mapping(
+                    breakpoint = 0f,
+                    mapping = Mapping.Identity,
+                    semantics = listOf(S1 with "Two"),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun directionalSpec_semantics_changeableIndividually() {
+        val result =
+            buildDirectionalMotionSpec(Spring, semantics = listOf(S1 with "One", S2 with "AAA")) {
+                mapping(
+                    breakpoint = 0f,
+                    mapping = Mapping.Identity,
+                    semantics = listOf(S2 with "BBB"),
+                )
+                mapping(
+                    breakpoint = 2f,
+                    mapping = Mapping.Identity,
+                    semantics = listOf(S1 with "Two"),
+                )
+            }
+        assertThat(result).mappings().hasSize(3)
+        assertThat(result).semantics().withKey(S1).containsExactly("One", "One", "Two").inOrder()
+        assertThat(result).semantics().withKey(S2).containsExactly("AAA", "BBB", "BBB").inOrder()
+    }
+
     companion object {
         val Spring = SpringParameters(stiffness = 100f, dampingRatio = 1f)
         val B1 = BreakpointKey("One")
         val B2 = BreakpointKey("Two")
+        val S1 = SemanticKey<String>("Foo")
+        val S2 = SemanticKey<String>("Bar")
     }
 }

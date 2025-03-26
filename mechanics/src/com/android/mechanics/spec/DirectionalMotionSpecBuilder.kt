@@ -50,15 +50,19 @@ import com.android.mechanics.spring.SpringParameters
  *   [Mapping.Identity]).
  * @param init A lambda function that configures the [DirectionalMotionSpecBuilder]. The lambda
  *   should return a [CanBeLastSegment] to indicate the end of the spec.
- * @return The constructed [DirectionalMotionSpec].
+ * @param semantics Semantics specified in this spec, including the initial value applied for
+ *   [initialMapping].
+ *     @return The constructed [DirectionalMotionSpec].
  */
 fun buildDirectionalMotionSpec(
     defaultSpring: SpringParameters,
     initialMapping: Mapping = Mapping.Identity,
+    semantics: List<SemanticValue<*>> = emptyList(),
     init: DirectionalMotionSpecBuilder.() -> CanBeLastSegment,
 ): DirectionalMotionSpec {
     return DirectionalMotionSpecBuilderImpl(defaultSpring)
         .also { it.mappings += initialMapping }
+        .also { it.semantics += semantics.map { SegmentSemanticValuesBuilder(it) } }
         .also { it.init() }
         .build()
 }
@@ -67,10 +71,21 @@ fun buildDirectionalMotionSpec(
  * Builds a simple [DirectionalMotionSpec] with a single segment.
  *
  * @param mapping The [Mapping] to apply to the segment. Defaults to [Mapping.Identity].
+ * @param semantics Semantics values for this spec.
  * @return A new [DirectionalMotionSpec] instance configured with the provided parameters.
  */
-fun buildDirectionalMotionSpec(mapping: Mapping = Mapping.Identity): DirectionalMotionSpec {
-    return DirectionalMotionSpec(listOf(Breakpoint.minLimit, Breakpoint.maxLimit), listOf(mapping))
+fun buildDirectionalMotionSpec(
+    mapping: Mapping = Mapping.Identity,
+    semantics: List<SemanticValue<*>> = emptyList(),
+): DirectionalMotionSpec {
+    fun <T> toSegmentSemanticValues(semanticValue: SemanticValue<T>) =
+        SegmentSemanticValues(semanticValue.key, listOf(semanticValue.value))
+
+    return DirectionalMotionSpec(
+        listOf(Breakpoint.minLimit, Breakpoint.maxLimit),
+        listOf(mapping),
+        semantics.map { toSegmentSemanticValues(it) },
+    )
 }
 
 /**
@@ -98,6 +113,8 @@ interface DirectionalMotionSpecBuilder {
      *   [defaultSpring].
      * @param guarantee The animation guarantee for this transition. Defaults to [Guarantee.None].
      * @param key A unique [BreakpointKey] for this breakpoint. Defaults to a newly generated key.
+     * @param semantics Updated semantics values to be applied. Must be a subset of the
+     *   [SemanticKey]s used when first creating this builder.
      */
     fun target(
         breakpoint: Float,
@@ -106,6 +123,7 @@ interface DirectionalMotionSpecBuilder {
         spring: SpringParameters = defaultSpring,
         guarantee: Guarantee = Guarantee.None,
         key: BreakpointKey = BreakpointKey(),
+        semantics: List<SemanticValue<*>> = emptyList(),
     )
 
     /**
@@ -124,6 +142,8 @@ interface DirectionalMotionSpecBuilder {
      *   [defaultSpring].
      * @param guarantee The animation guarantee for this transition. Defaults to [Guarantee.None].
      * @param key A unique [BreakpointKey] for this breakpoint. Defaults to a newly generated key.
+     * @param semantics Updated semantics values to be applied. Must be a subset of the
+     *   [SemanticKey]s used when first creating this builder.
      */
     fun targetFromCurrent(
         breakpoint: Float,
@@ -132,6 +152,7 @@ interface DirectionalMotionSpecBuilder {
         spring: SpringParameters = defaultSpring,
         guarantee: Guarantee = Guarantee.None,
         key: BreakpointKey = BreakpointKey(),
+        semantics: List<SemanticValue<*>> = emptyList(),
     )
 
     /**
@@ -151,6 +172,8 @@ interface DirectionalMotionSpecBuilder {
      *   [defaultSpring].
      * @param guarantee The animation guarantee for this transition. Defaults to [Guarantee.None].
      * @param key A unique [BreakpointKey] for this breakpoint. Defaults to a newly generated key.
+     * @param semantics Updated semantics values to be applied. Must be a subset of the
+     *   [SemanticKey]s used when first creating this builder.
      */
     fun fractionalInput(
         breakpoint: Float,
@@ -159,6 +182,7 @@ interface DirectionalMotionSpecBuilder {
         spring: SpringParameters = defaultSpring,
         guarantee: Guarantee = Guarantee.None,
         key: BreakpointKey = BreakpointKey(),
+        semantics: List<SemanticValue<*>> = emptyList(),
     ): CanBeLastSegment
 
     /**
@@ -177,6 +201,8 @@ interface DirectionalMotionSpecBuilder {
      *   [defaultSpring].
      * @param guarantee The animation guarantee for this transition. Defaults to [Guarantee.None].
      * @param key A unique [BreakpointKey] for this breakpoint. Defaults to a newly generated key.
+     * @param semantics Updated semantics values to be applied. Must be a subset of the
+     *   [SemanticKey]s used when first creating this builder.
      */
     fun fractionalInputFromCurrent(
         breakpoint: Float,
@@ -185,6 +211,7 @@ interface DirectionalMotionSpecBuilder {
         spring: SpringParameters = defaultSpring,
         guarantee: Guarantee = Guarantee.None,
         key: BreakpointKey = BreakpointKey(),
+        semantics: List<SemanticValue<*>> = emptyList(),
     ): CanBeLastSegment
 
     /**
@@ -200,6 +227,8 @@ interface DirectionalMotionSpecBuilder {
      *   [defaultSpring].
      * @param guarantee The animation guarantee for this transition. Defaults to [Guarantee.None].
      * @param key A unique [BreakpointKey] for this breakpoint. Defaults to a newly generated key.
+     * @param semantics Updated semantics values to be applied. Must be a subset of the
+     *   [SemanticKey]s used when first creating this builder.
      */
     fun constantValue(
         breakpoint: Float,
@@ -207,6 +236,7 @@ interface DirectionalMotionSpecBuilder {
         spring: SpringParameters = defaultSpring,
         guarantee: Guarantee = Guarantee.None,
         key: BreakpointKey = BreakpointKey(),
+        semantics: List<SemanticValue<*>> = emptyList(),
     ): CanBeLastSegment
 
     /**
@@ -224,6 +254,8 @@ interface DirectionalMotionSpecBuilder {
      *   [defaultSpring].
      * @param guarantee The animation guarantee for this transition. Defaults to [Guarantee.None].
      * @param key A unique [BreakpointKey] for this breakpoint. Defaults to a newly generated key.
+     * @param semantics Updated semantics values to be applied. Must be a subset of the
+     *   [SemanticKey]s used when first creating this builder.
      */
     fun constantValueFromCurrent(
         breakpoint: Float,
@@ -231,6 +263,7 @@ interface DirectionalMotionSpecBuilder {
         spring: SpringParameters = defaultSpring,
         guarantee: Guarantee = Guarantee.None,
         key: BreakpointKey = BreakpointKey(),
+        semantics: List<SemanticValue<*>> = emptyList(),
     ): CanBeLastSegment
 
     /**
@@ -245,6 +278,8 @@ interface DirectionalMotionSpecBuilder {
      *   [defaultSpring].
      * @param guarantee The animation guarantee for this transition. Defaults to [Guarantee.None].
      * @param key A unique [BreakpointKey] for this breakpoint. Defaults to a newly generated key.
+     * @param semantics Updated semantics values to be applied. Must be a subset of the
+     *   [SemanticKey]s used when first creating this builder.
      * @param mapping The custom [Mapping] to use.
      */
     fun mapping(
@@ -252,6 +287,7 @@ interface DirectionalMotionSpecBuilder {
         spring: SpringParameters = defaultSpring,
         guarantee: Guarantee = Guarantee.None,
         key: BreakpointKey = BreakpointKey(),
+        semantics: List<SemanticValue<*>> = emptyList(),
         mapping: Mapping,
     ): CanBeLastSegment
 }
@@ -261,16 +297,45 @@ sealed interface CanBeLastSegment
 
 private data object CanBeLastSegmentImpl : CanBeLastSegment
 
+private class SegmentSemanticValuesBuilder<T>(seed: SemanticValue<T>) {
+    val key = seed.key
+    private val values = mutableListOf(seed.value)
+
+    fun backfill(segmentCount: Int) {
+        val lastValue = values.last()
+        repeat(segmentCount - values.size) { values.add(lastValue) }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <V> append(value: V) {
+        values.add(value as T)
+    }
+
+    fun build() = SegmentSemanticValues(key, values.toList())
+}
+
 private class DirectionalMotionSpecBuilderImpl(override val defaultSpring: SpringParameters) :
     DirectionalMotionSpecBuilder {
     private val breakpoints = mutableListOf(Breakpoint.minLimit)
+    val semantics = mutableListOf<SegmentSemanticValuesBuilder<*>>()
     val mappings = mutableListOf<Mapping>()
-
     private var sourceValue: Float = Float.NaN
     private var targetValue: Float = Float.NaN
     private var fractionalMapping: Float = Float.NaN
     private var breakpointPosition: Float = Float.NaN
     private var breakpointKey: BreakpointKey? = null
+
+    private fun applySemantics(toApply: List<SemanticValue<*>>) {
+        toApply.forEach { (key, value) ->
+            val semanticValuesBuilder =
+                checkNotNull(semantics.first { it.key == key }) {
+                    "semantic key $key not initially registered"
+                }
+
+            semanticValuesBuilder.backfill(mappings.size)
+            semanticValuesBuilder.append(value)
+        }
+    }
 
     override fun target(
         breakpoint: Float,
@@ -279,7 +344,9 @@ private class DirectionalMotionSpecBuilderImpl(override val defaultSpring: Sprin
         spring: SpringParameters,
         guarantee: Guarantee,
         key: BreakpointKey,
+        semantics: List<SemanticValue<*>>,
     ) {
+        applySemantics(semantics)
         toBreakpointImpl(breakpoint, key)
         jumpToImpl(from, spring, guarantee)
         continueWithTargetValueImpl(to)
@@ -292,7 +359,9 @@ private class DirectionalMotionSpecBuilderImpl(override val defaultSpring: Sprin
         spring: SpringParameters,
         guarantee: Guarantee,
         key: BreakpointKey,
+        semantics: List<SemanticValue<*>>,
     ) {
+        applySemantics(semantics)
         toBreakpointImpl(breakpoint, key)
         jumpByImpl(delta, spring, guarantee)
         continueWithTargetValueImpl(to)
@@ -305,7 +374,9 @@ private class DirectionalMotionSpecBuilderImpl(override val defaultSpring: Sprin
         spring: SpringParameters,
         guarantee: Guarantee,
         key: BreakpointKey,
+        semantics: List<SemanticValue<*>>,
     ): CanBeLastSegment {
+        applySemantics(semantics)
         toBreakpointImpl(breakpoint, key)
         jumpToImpl(from, spring, guarantee)
         continueWithFractionalInputImpl(fraction)
@@ -319,7 +390,9 @@ private class DirectionalMotionSpecBuilderImpl(override val defaultSpring: Sprin
         spring: SpringParameters,
         guarantee: Guarantee,
         key: BreakpointKey,
+        semantics: List<SemanticValue<*>>,
     ): CanBeLastSegment {
+        applySemantics(semantics)
         toBreakpointImpl(breakpoint, key)
         jumpByImpl(delta, spring, guarantee)
         continueWithFractionalInputImpl(fraction)
@@ -332,7 +405,9 @@ private class DirectionalMotionSpecBuilderImpl(override val defaultSpring: Sprin
         spring: SpringParameters,
         guarantee: Guarantee,
         key: BreakpointKey,
+        semantics: List<SemanticValue<*>>,
     ): CanBeLastSegment {
+        applySemantics(semantics)
         toBreakpointImpl(breakpoint, key)
         jumpToImpl(value, spring, guarantee)
         continueWithConstantValueImpl()
@@ -345,7 +420,9 @@ private class DirectionalMotionSpecBuilderImpl(override val defaultSpring: Sprin
         spring: SpringParameters,
         guarantee: Guarantee,
         key: BreakpointKey,
+        semantics: List<SemanticValue<*>>,
     ): CanBeLastSegment {
+        applySemantics(semantics)
         toBreakpointImpl(breakpoint, key)
         jumpByImpl(delta, spring, guarantee)
         continueWithConstantValueImpl()
@@ -357,8 +434,10 @@ private class DirectionalMotionSpecBuilderImpl(override val defaultSpring: Sprin
         spring: SpringParameters,
         guarantee: Guarantee,
         key: BreakpointKey,
+        semantics: List<SemanticValue<*>>,
         mapping: Mapping,
     ): CanBeLastSegment {
+        applySemantics(semantics)
         toBreakpointImpl(breakpoint, key)
         continueWithImpl(mapping, spring, guarantee)
         return CanBeLastSegmentImpl
@@ -366,7 +445,15 @@ private class DirectionalMotionSpecBuilderImpl(override val defaultSpring: Sprin
 
     fun build(): DirectionalMotionSpec {
         completeImpl()
-        return DirectionalMotionSpec(breakpoints.toList(), mappings.toList())
+        val semantics =
+            semantics.map { builder ->
+                with(builder) {
+                    backfill(mappings.size)
+                    build()
+                }
+            }
+
+        return DirectionalMotionSpec(breakpoints.toList(), mappings.toList(), semantics)
     }
 
     private fun continueWithTargetValueImpl(target: Float) {

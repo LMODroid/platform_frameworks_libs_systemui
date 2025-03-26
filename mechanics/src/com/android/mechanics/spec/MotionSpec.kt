@@ -16,6 +16,7 @@
 
 package com.android.mechanics.spec
 
+import androidx.compose.ui.util.fastFirstOrNull
 import com.android.mechanics.spring.SpringParameters
 
 /**
@@ -68,6 +69,37 @@ data class MotionSpec(
     /** Whether this spec contains a segment with the specified [segmentKey]. */
     fun containsSegment(segmentKey: SegmentKey): Boolean {
         return get(segmentKey.direction).findSegmentIndex(segmentKey) != -1
+    }
+
+    /**
+     * The semantic state for [key] at segment with [segmentKey].
+     *
+     * Returns `null` if no semantic value with [key] is defined. Throws [NoSuchElementException] if
+     * [segmentKey] does not exist in this [MotionSpec].
+     */
+    fun <T> semanticState(key: SemanticKey<T>, segmentKey: SegmentKey): T? {
+        with(get(segmentKey.direction)) {
+            val semanticValues = semantics.fastFirstOrNull { it.key == key } ?: return null
+            val segmentIndex = findSegmentIndex(segmentKey)
+            if (segmentIndex < 0) throw NoSuchElementException()
+
+            @Suppress("UNCHECKED_CAST")
+            return semanticValues.values[segmentIndex] as T
+        }
+    }
+
+    /**
+     * All [SemanticValue]s associated with the segment identified with [segmentKey].
+     *
+     * Throws [NoSuchElementException] if [segmentKey] does not exist in this [MotionSpec].
+     */
+    fun semantics(segmentKey: SegmentKey): List<SemanticValue<*>> {
+        with(get(segmentKey.direction)) {
+            val segmentIndex = findSegmentIndex(segmentKey)
+            if (segmentIndex < 0) throw NoSuchElementException()
+
+            return semantics.map { it[segmentIndex] }
+        }
     }
 
     /**
@@ -139,8 +171,17 @@ data class MotionSpec(
  *   element, and [Breakpoint.maxLimit] as the last element.
  * @param mappings All mappings in between the breakpoints, thus must always contain
  *   `breakpoints.size - 1` elements.
+ * @param semantics semantics provided by this spec, must only reference to breakpoint keys included
+ *   in [breakpoints].
  */
-data class DirectionalMotionSpec(val breakpoints: List<Breakpoint>, val mappings: List<Mapping>) {
+data class DirectionalMotionSpec(
+    val breakpoints: List<Breakpoint>,
+    val mappings: List<Mapping>,
+    val semantics: List<SegmentSemanticValues<*>> = emptyList(),
+) {
+    /** Maps all [BreakpointKey]s used in this spec to its index in [breakpoints]. */
+    private val breakpointIndexByKey: Map<BreakpointKey, Int>
+
     init {
         require(breakpoints.size >= 2)
         require(breakpoints.first() == Breakpoint.minLimit)
@@ -149,6 +190,15 @@ data class DirectionalMotionSpec(val breakpoints: List<Breakpoint>, val mappings
             "Breakpoints are not sorted ascending ${breakpoints.map { "${it.key}@${it.position}" }}"
         }
         require(mappings.size == breakpoints.size - 1)
+
+        breakpointIndexByKey =
+            breakpoints.mapIndexed { index, breakpoint -> breakpoint.key to index }.toMap()
+
+        semantics.forEach {
+            require(it.values.size == mappings.size) {
+                "Semantics ${it.key} does not include correct number of segments"
+            }
+        }
     }
 
     /**
@@ -182,13 +232,13 @@ data class DirectionalMotionSpec(val breakpoints: List<Breakpoint>, val mappings
      * exists.
      */
     fun findBreakpointIndex(breakpointKey: BreakpointKey): Int {
-        return breakpoints.indexOfFirst { it.key == breakpointKey }
+        return breakpointIndexByKey[breakpointKey] ?: -1
     }
 
     /** Index into [mappings] for the specified [segmentKey], or `-1` if no such segment exists. */
     fun findSegmentIndex(segmentKey: SegmentKey): Int {
-        val result = breakpoints.indexOfFirst { it.key == segmentKey.minBreakpoint }
-        if (result < 0 || breakpoints[result + 1].key != segmentKey.maxBreakpoint) return -1
+        val result = breakpointIndexByKey[segmentKey.minBreakpoint] ?: return -1
+        if (breakpoints[result + 1].key != segmentKey.maxBreakpoint) return -1
 
         return result
     }

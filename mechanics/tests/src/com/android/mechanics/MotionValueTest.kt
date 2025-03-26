@@ -29,13 +29,20 @@ import androidx.compose.ui.test.TestMonotonicFrameClock
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.mechanics.spec.BreakpointKey
+import com.android.mechanics.spec.CanBeLastSegment
 import com.android.mechanics.spec.DirectionalMotionSpec
+import com.android.mechanics.spec.DirectionalMotionSpecBuilder
 import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
+import com.android.mechanics.spec.SemanticKey
+import com.android.mechanics.spec.SemanticValue
+import com.android.mechanics.spec.buildDirectionalMotionSpec
 import com.android.mechanics.spec.builder
 import com.android.mechanics.spec.reverseBuilder
+import com.android.mechanics.spec.with
+import com.android.mechanics.testing.CapturedSemantics
 import com.android.mechanics.testing.DefaultSprings.matStandardDefault
 import com.android.mechanics.testing.DefaultSprings.matStandardFast
 import com.android.mechanics.testing.MotionValueToolkit
@@ -60,6 +67,7 @@ import org.junit.Test
 import org.junit.rules.ExternalResource
 import org.junit.runner.RunWith
 import platform.test.motion.MotionTestRule
+import platform.test.motion.golden.DataPointTypes.string
 import platform.test.motion.testing.createGoldenPathManager
 
 @RunWith(AndroidJUnit4::class)
@@ -365,6 +373,47 @@ class MotionValueTest {
             animateValueTo(0f)
             awaitStable()
         }
+    }
+
+    @Test
+    fun semantics_flipsBetweenDirectionalSegments() {
+        val s1 = SemanticKey<String>("Foo")
+        val spec =
+            specBuilder(Mapping.Zero, semantics = listOf(s1 with "zero")) {
+                constantValue(1f, 1f, semantics = listOf(s1 with "one"))
+                constantValue(2f, 2f, semantics = listOf(s1 with "two"))
+            }
+
+        motion.goldenTest(spec = spec, semantics = listOf(CapturedSemantics(s1, string))) {
+            animateValueTo(3f, changePerFrame = .2f)
+            awaitStable()
+        }
+    }
+
+    @Test
+    fun semantics_returnsNullForUnknownKey() {
+        val underTest = MotionValue({ 1f }, FakeGestureContext)
+
+        val s1 = SemanticKey<String>("Foo")
+
+        assertThat(underTest[s1]).isNull()
+    }
+
+    @Test
+    fun semantics_returnsValueMatchingSegment() {
+        val s1 = SemanticKey<String>("Foo")
+        val spec =
+            specBuilder(Mapping.Zero, semantics = listOf(s1 with "zero")) {
+                constantValue(1f, 1f, semantics = listOf(s1 with "one"))
+                constantValue(2f, 2f, semantics = listOf(s1 with "two"))
+            }
+
+        val input = mutableFloatStateOf(0f)
+        val underTest = MotionValue(input::value, FakeGestureContext, spec)
+
+        assertThat(underTest[s1]).isEqualTo("zero")
+        input.floatValue = 2f
+        assertThat(underTest[s1]).isEqualTo("two")
     }
 
     @Test
@@ -693,6 +742,17 @@ class MotionValueTest {
                     get() = 0f
             }
         private val FrameDelayNanos: Long = 16_000_000L
+
+        fun specBuilder(
+            initialMapping: Mapping = Mapping.Identity,
+            semantics: List<SemanticValue<*>> = emptyList(),
+            init: DirectionalMotionSpecBuilder.() -> CanBeLastSegment,
+        ): MotionSpec {
+            return MotionSpec(
+                buildDirectionalMotionSpec(matStandardDefault, initialMapping, semantics, init),
+                resetSpring = matStandardFast,
+            )
+        }
 
         fun specBuilder(firstSegment: Mapping = Mapping.Identity) =
             MotionSpec.builder(

@@ -31,6 +31,8 @@ import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
+import com.android.mechanics.spec.SemanticKey
+import com.android.mechanics.spec.with
 import com.android.mechanics.testing.EmptyTestActivity
 import com.android.mechanics.testing.VerifyTimeSeriesResult
 import com.android.mechanics.testing.VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
@@ -107,6 +109,26 @@ class ViewMotionValueTest {
             animateValueTo(1f, changePerFrame = 0.5f)
             awaitStable()
         }
+
+    @Test
+    fun semantics_returnsValueMatchingSegment() {
+        activityRule.scenario.onActivity {
+            val s1 = SemanticKey<String>("Foo")
+            val spec =
+                specBuilder(Mapping.Zero, semantics = listOf(s1 with "zero")) {
+                    constantValue(1f, 1f, semantics = listOf(s1 with "one"))
+                    constantValue(2f, 2f, semantics = listOf(s1 with "two"))
+                }
+
+            val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 5f)
+            val underTest = ViewMotionValue(0f, gestureContext, spec)
+
+            assertThat(underTest[s1]).isEqualTo("zero")
+            underTest.input = 2f
+            animatorTestRule.advanceTimeBy(16L)
+            assertThat(underTest[s1]).isEqualTo("two")
+        }
+    }
 
     @Test
     fun gestureContext_listensToGestureContextUpdates() =

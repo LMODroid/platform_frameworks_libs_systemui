@@ -75,6 +75,11 @@ data class SegmentData(
                 InputDirection.Max -> minBreakpoint
                 InputDirection.Min -> maxBreakpoint
             }
+
+    /** Semantic value for the given [semanticKey]. */
+    fun <T> semantic(semanticKey: SemanticKey<T>): T? {
+        return spec.semanticState(semanticKey, key)
+    }
 }
 
 /**

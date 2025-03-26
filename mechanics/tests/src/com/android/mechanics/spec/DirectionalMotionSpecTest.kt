@@ -168,10 +168,35 @@ class DirectionalMotionSpecTest {
         assertThat(underTest.findSegmentIndex(SegmentKey(B1, B3, InputDirection.Max))).isEqualTo(-1)
     }
 
+    @Test
+    fun semantics_tooFewValues_throws() {
+        assertFailsWith<IllegalArgumentException> {
+            DirectionalMotionSpec(
+                listOf(Breakpoint.minLimit, Breakpoint.maxLimit),
+                listOf(Mapping.Identity),
+                listOf(SegmentSemanticValues(Semantic1, emptyList())),
+            )
+        }
+    }
+
+    @Test
+    fun semantics_tooManyValues_throws() {
+        assertFailsWith<IllegalArgumentException> {
+            DirectionalMotionSpec(
+                listOf(Breakpoint.minLimit, Breakpoint.maxLimit),
+                listOf(Mapping.Identity),
+                listOf(SegmentSemanticValues(Semantic1, listOf("One", "Two"))),
+            )
+        }
+    }
+
     companion object {
         val B1 = BreakpointKey("one")
         val B2 = BreakpointKey("two")
         val B3 = BreakpointKey("three")
+        val Semantic1 = SemanticKey<String>("Foo")
+        val Semantic2 = SemanticKey<String>("Bar")
+
         val Spring = SpringParameters(stiffness = 100f, dampingRatio = 1f)
     }
 }

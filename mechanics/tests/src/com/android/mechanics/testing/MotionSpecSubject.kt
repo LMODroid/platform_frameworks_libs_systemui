@@ -20,6 +20,7 @@ import com.android.mechanics.spec.Breakpoint
 import com.android.mechanics.spec.BreakpointKey
 import com.android.mechanics.spec.DirectionalMotionSpec
 import com.android.mechanics.spec.Mapping
+import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.testing.BreakpointSubject.Companion.BreakpointKeys
 import com.android.mechanics.testing.BreakpointSubject.Companion.BreakpointPositions
 import com.google.common.truth.Correspondence
@@ -47,6 +48,13 @@ internal constructor(failureMetadata: FailureMetadata, private val actual: Direc
         isNotNull()
 
         return check("mappings").about(MappingsSubject.SubjectFactory).that(actual)
+    }
+
+    /** Assert on the semantics. */
+    fun semantics(): SemanticsSubject {
+        isNotNull()
+
+        return check("semantics").about(SemanticsSubject.SubjectFactory).that(actual)
     }
 
     companion object {
@@ -199,5 +207,26 @@ internal constructor(failureMetadata: FailureMetadata, private val actual: Mappi
         /** Shortcut for `Truth.assertAbout(subjectFactory).that(mapping)`. */
         fun assertThat(mapping: Mapping): MappingSubject =
             Truth.assertAbout(SubjectFactory).that(mapping)
+    }
+}
+
+/** Subject to assert on the list of semantic values of a [DirectionalMotionSpec]. */
+class SemanticsSubject(
+    failureMetadata: FailureMetadata,
+    private val actual: DirectionalMotionSpec?,
+) : IterableSubject(failureMetadata, actual?.semantics?.map { it.key }) {
+
+    /** Assert on the semantic values of the. */
+    fun withKey(key: SemanticKey<*>): IterableSubject {
+        return check("semantic $key")
+            .that(actual?.run { semantics.firstOrNull { it.key == key }?.values })
+    }
+
+    companion object {
+        /** Returns a factory to be used with [Truth.assertAbout]. */
+        val SubjectFactory =
+            Factory<SemanticsSubject, DirectionalMotionSpec> { failureMetadata, subject ->
+                SemanticsSubject(failureMetadata, subject)
+            }
     }
 }
