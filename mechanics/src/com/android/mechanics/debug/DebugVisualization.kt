@@ -50,8 +50,10 @@ import com.android.mechanics.MotionValue
 import com.android.mechanics.spec.DirectionalMotionSpec
 import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.InputDirection
+import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SegmentKey
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.flow.first
@@ -359,17 +361,36 @@ private fun DrawScope.drawDirectionalSpec(
         val segmentEnd = endBreakpoint.position
         val toInput = segmentEnd.fastCoerceAtMost(inputRange.endInclusive)
 
-        // TODO add support for functions that are not linear
+        val strokeWidth = if (isActiveSegment) 2.dp.toPx() else Stroke.HairlineWidth
+        val dotSize = if (isActiveSegment) 4.dp.toPx() else 2.dp.toPx()
         val fromY = mapPointInOutputToY(mapping.map(fromInput), outputRange)
         val toY = mapPointInOutputToY(mapping.map(toInput), outputRange)
 
         val start = Offset(mapPointInInputToX(fromInput, inputRange), fromY)
         val end = Offset(mapPointInInputToX(toInput, inputRange), toY)
+        if (mapping is Mapping.Fixed || mapping is Mapping.Identity || mapping is Mapping.Linear) {
+            drawLine(color, start, end, strokeWidth = strokeWidth)
+        } else {
+            val xStart = mapPointInInputToX(fromInput, inputRange)
+            val xEnd = mapPointInInputToX(toInput, inputRange)
 
-        val strokeWidth = if (isActiveSegment) 2.dp.toPx() else Stroke.HairlineWidth
-        val dotSize = if (isActiveSegment) 4.dp.toPx() else 2.dp.toPx()
+            val oneDpInPx = 1.dp.toPx()
+            val numberOfLines = ceil((xEnd - xStart) / oneDpInPx).toInt()
+            val inputLength = (toInput - fromInput) / numberOfLines
 
-        drawLine(color, start, end, strokeWidth = strokeWidth)
+            repeat(numberOfLines) {
+                val lineStart = fromInput + inputLength * it
+                val lineEnd = lineStart + inputLength
+
+                val partialFromY = mapPointInOutputToY(mapping.map(lineStart), outputRange)
+                val partialToY = mapPointInOutputToY(mapping.map(lineEnd), outputRange)
+
+                val partialStart = Offset(mapPointInInputToX(lineStart, inputRange), partialFromY)
+                val partialEnd = Offset(mapPointInInputToX(lineEnd, inputRange), partialToY)
+
+                drawLine(color, partialStart, partialEnd, strokeWidth = strokeWidth)
+            }
+        }
 
         if (segmentStart == fromInput) {
             drawCircle(color, dotSize, start)
