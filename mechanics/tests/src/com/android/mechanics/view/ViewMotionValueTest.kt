@@ -27,10 +27,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.mechanics.MotionValueTest.Companion.B1
 import com.android.mechanics.MotionValueTest.Companion.B2
 import com.android.mechanics.MotionValueTest.Companion.specBuilder
+import com.android.mechanics.spec.Breakpoint
 import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
+import com.android.mechanics.spec.SegmentKey
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spec.with
 import com.android.mechanics.testing.EmptyTestActivity
@@ -127,6 +129,26 @@ class ViewMotionValueTest {
             underTest.input = 2f
             animatorTestRule.advanceTimeBy(16L)
             assertThat(underTest[s1]).isEqualTo("two")
+        }
+    }
+
+    @Test
+    fun segment_returnsCurrentSegmentKey() {
+        activityRule.scenario.onActivity {
+            val spec =
+                specBuilder(Mapping.Zero) {
+                    constantValue(1f, 1f, key = B1)
+                    constantValue(2f, 2f, key = B2)
+                }
+
+            val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 5f)
+            val underTest = ViewMotionValue(1f, gestureContext, spec)
+
+            assertThat(underTest.segmentKey).isEqualTo(SegmentKey(B1, B2, InputDirection.Max))
+            underTest.input = 2f
+            animatorTestRule.advanceTimeBy(16L)
+            assertThat(underTest.segmentKey)
+                .isEqualTo(SegmentKey(B2, Breakpoint.maxLimit.key, InputDirection.Max))
         }
     }
 

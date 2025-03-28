@@ -28,6 +28,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.TestMonotonicFrameClock
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.mechanics.spec.Breakpoint
 import com.android.mechanics.spec.BreakpointKey
 import com.android.mechanics.spec.CanBeLastSegment
 import com.android.mechanics.spec.DirectionalMotionSpec
@@ -36,6 +37,7 @@ import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
+import com.android.mechanics.spec.SegmentKey
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spec.SemanticValue
 import com.android.mechanics.spec.buildDirectionalMotionSpec
@@ -414,6 +416,23 @@ class MotionValueTest {
         assertThat(underTest[s1]).isEqualTo("zero")
         input.floatValue = 2f
         assertThat(underTest[s1]).isEqualTo("two")
+    }
+
+    @Test
+    fun segment_returnsCurrentSegmentKey() {
+        val spec =
+            specBuilder(Mapping.Zero) {
+                constantValue(1f, 1f, key = B1)
+                constantValue(2f, 2f, key = B2)
+            }
+
+        val input = mutableFloatStateOf(1f)
+        val underTest = MotionValue(input::value, FakeGestureContext, spec)
+
+        assertThat(underTest.segmentKey).isEqualTo(SegmentKey(B1, B2, InputDirection.Max))
+        input.floatValue = 2f
+        assertThat(underTest.segmentKey)
+            .isEqualTo(SegmentKey(B2, Breakpoint.maxLimit.key, InputDirection.Max))
     }
 
     @Test

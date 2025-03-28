@@ -27,6 +27,7 @@ import com.android.mechanics.impl.GuaranteeState
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SegmentData
+import com.android.mechanics.spec.SegmentKey
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spring.SpringState
 import java.util.concurrent.atomic.AtomicInteger
@@ -77,6 +78,9 @@ class ViewMotionValue(
      */
     val outputTarget: Float by impl::outputTarget
 
+    /** Whether an animation is currently running. */
+    val isStable: Boolean by impl::isStable
+
     /**
      * The current value for the [SemanticKey].
      *
@@ -86,8 +90,9 @@ class ViewMotionValue(
         return impl.semanticState(key)
     }
 
-    /** Whether an animation is currently running. */
-    val isStable: Boolean by impl::isStable
+    /** The current segment used to compute the output. */
+    val segmentKey: SegmentKey
+        get() = impl.currentSegment.key
 
     val label: String? by impl::label
 

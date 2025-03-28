@@ -37,6 +37,7 @@ import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SegmentData
+import com.android.mechanics.spec.SegmentKey
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spring.SpringState
 import java.util.concurrent.atomic.AtomicInteger
@@ -149,6 +150,10 @@ class MotionValue(
     operator fun <T> get(key: SemanticKey<T>): T? {
         return impl.semanticState(key)
     }
+
+    /** The current segment used to compute the output. */
+    val segmentKey: SegmentKey
+        get() = impl.currentSegment.key
 
     /**
      * Keeps the [MotionValue]'s animated output running.
