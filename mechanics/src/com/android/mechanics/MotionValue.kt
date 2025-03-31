@@ -376,25 +376,27 @@ private class ObservableComputations(
                     directMappedVelocity = 0f
                 }
 
-                var scheduleNextFrame = !isStable
-                if (capturedSegment != currentSegment) {
-                    capturedSegment = currentSegment
-                    scheduleNextFrame = true
-                }
+                var scheduleNextFrame = false
+                if (!isSameSegmentAndAtRest) {
+                    if (capturedSegment != currentSegment) {
+                        capturedSegment = currentSegment
+                        scheduleNextFrame = true
+                    }
 
-                if (capturedGuaranteeState != currentGuaranteeState) {
-                    capturedGuaranteeState = currentGuaranteeState
-                    scheduleNextFrame = true
-                }
+                    if (capturedGuaranteeState != currentGuaranteeState) {
+                        capturedGuaranteeState = currentGuaranteeState
+                        scheduleNextFrame = true
+                    }
 
-                if (capturedAnimation != currentAnimation) {
-                    capturedAnimation = currentAnimation
-                    scheduleNextFrame = true
-                }
+                    if (capturedAnimation != currentAnimation) {
+                        capturedAnimation = currentAnimation
+                        scheduleNextFrame = true
+                    }
 
-                if (capturedSpringState != currentSpringState) {
-                    capturedSpringState = currentSpringState
-                    scheduleNextFrame = true
+                    if (capturedSpringState != currentSpringState) {
+                        capturedSpringState = currentSpringState
+                        scheduleNextFrame = true
+                    }
                 }
 
                 if (capturedInput != currentInput) {

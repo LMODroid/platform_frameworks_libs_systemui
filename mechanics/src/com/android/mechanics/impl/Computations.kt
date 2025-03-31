@@ -423,22 +423,55 @@ internal interface ComputeSpringState : ComputeAnimation {
 internal interface Computations : ComputeSpringState {
     val currentSpringState: SpringState
 
+    val isSameSegmentAndAtRest: Boolean
+        get() =
+            lastAnimation.isAtRest &&
+                lastSegment.spec == spec &&
+                lastSegment.isValidForInput(currentInput, currentDirection)
+
     val currentDirectMapped: Float
-        get() = currentSegment.mapping.map(currentInput) - currentAnimation.targetValue
+        get() =
+            if (isSameSegmentAndAtRest) {
+                lastSegment.mapping.map(currentInput)
+            } else {
+                currentSegment.mapping.map(currentInput) - currentAnimation.targetValue
+            }
 
     val currentAnimatedDelta: Float
-        get() = currentAnimation.targetValue + currentSpringState.displacement
+        get() =
+            if (isSameSegmentAndAtRest) {
+                0f
+            } else {
+                currentAnimation.targetValue + currentSpringState.displacement
+            }
 
     val output: Float
-        get() = currentDirectMapped + currentAnimatedDelta
+        get() =
+            if (isSameSegmentAndAtRest) {
+                lastSegment.mapping.map(currentInput)
+            } else {
+                currentDirectMapped + currentAnimatedDelta
+            }
 
     val outputTarget: Float
-        get() = currentDirectMapped + currentAnimation.targetValue
+        get() =
+            if (isSameSegmentAndAtRest) {
+                lastAnimation.targetValue
+            } else {
+                currentDirectMapped + currentAnimation.targetValue
+            }
 
     val isStable: Boolean
-        get() = currentSpringState == SpringState.AtRest
+        get() =
+            if (isSameSegmentAndAtRest) {
+                true
+            } else {
+                currentSpringState == SpringState.AtRest
+            }
 
     fun <T> semanticState(semanticKey: SemanticKey<T>): T? {
-        return with(currentSegment) { spec.semanticState(semanticKey, key) }
+        return with(if (isSameSegmentAndAtRest) lastSegment else currentSegment) {
+            spec.semanticState(semanticKey, key)
+        }
     }
 }

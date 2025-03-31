@@ -277,10 +277,12 @@ private class ImperativeComputations(
 
         currentAnimationTimeNanos = frameTimeMillis * 1_000_000L
 
-        currentSegment = computeCurrentSegment()
-        currentGuaranteeState = computeCurrentGuaranteeState()
-        currentAnimation = computeCurrentAnimation()
-        currentSpringState = computeCurrentSpringState()
+        if (!isSameSegmentAndAtRest) {
+            currentSegment = computeCurrentSegment()
+            currentGuaranteeState = computeCurrentGuaranteeState()
+            currentAnimation = computeCurrentAnimation()
+            currentSpringState = computeCurrentSpringState()
+        }
 
         debugInspector?.run {
             frame =
