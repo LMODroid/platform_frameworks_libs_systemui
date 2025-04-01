@@ -21,7 +21,7 @@ import androidx.benchmark.junit4.measureRepeated
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.ui.util.fastForEach
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.mechanics.DistanceGestureContext
 import com.android.mechanics.MotionValue
@@ -32,7 +32,6 @@ import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.buildDirectionalMotionSpec
 import com.android.mechanics.spring.SpringParameters
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.junit.Rule
 import org.junit.Test
@@ -106,36 +105,38 @@ class MotionValueBenchmark {
         }
     }
 
-    // Compose specific
-
     @Test
-    fun writeState_1snapshotFlow() = runMonotonicClockTest {
-        val composeState = mutableFloatStateOf(0f)
-
-        var lastRead = 0f
-        snapshotFlow { composeState.floatValue }.onEach { lastRead = it }.launchIn(backgroundScope)
+    fun stable_writeInput_AND_readOutput_keepRunning() = runMonotonicClockTest {
+        val data = testData()
+        keepRunningDuringTest(data.motionValue)
 
         benchmarkRule.measureRepeated {
-            composeState.floatValue++
-            Snapshot.sendApplyNotifications()
+            data.input.floatValue += 1f
             testScheduler.advanceTimeBy(16)
-        }
-
-        check(lastRead == composeState.floatValue) {
-            "snapshotFlow lastRead $lastRead != ${composeState.floatValue} (current composeState)"
+            data.motionValue.floatValue
         }
     }
 
     @Test
-    fun writeState_100snapshotFlow() = runMonotonicClockTest {
-        val composeState = mutableFloatStateOf(0f)
-
-        repeat(100) { snapshotFlow { composeState.floatValue }.launchIn(backgroundScope) }
+    fun stable_writeInput_AND_readOutput_100motionValues_keepRunning() = runMonotonicClockTest {
+        val dataList = List(100) { testData() }
+        dataList.forEach { keepRunningDuringTest(it.motionValue) }
 
         benchmarkRule.measureRepeated {
-            composeState.floatValue++
-            Snapshot.sendApplyNotifications()
+            dataList.fastForEach { it.input.floatValue += 1f }
             testScheduler.advanceTimeBy(16)
+            dataList.fastForEach { it.motionValue.floatValue }
+        }
+    }
+
+    @Test
+    fun stable_readOutput_100motionValues_keepRunning() = runMonotonicClockTest {
+        val dataList = List(100) { testData() }
+        dataList.forEach { keepRunningDuringTest(it.motionValue) }
+
+        benchmarkRule.measureRepeated {
+            testScheduler.advanceTimeBy(16)
+            dataList.fastForEach { it.motionValue.floatValue }
         }
     }
 
@@ -169,8 +170,24 @@ class MotionValueBenchmark {
             if (data.motionValue.isStable) {
                 data.gestureContext.reset(0f, data.gestureContext.direction.opposite)
             }
-            data.motionValue.floatValue
             testScheduler.advanceTimeBy(16)
+            data.motionValue.floatValue
+        }
+    }
+
+    @Test
+    fun unstable_resetGestureContext_readOutput_100motionValues() = runMonotonicClockTest {
+        val dataList = List(100) { testData(input = 1f, spec = MotionSpec.ZeroToOne_AtOne) }
+        dataList.forEach { keepRunningDuringTest(it.motionValue) }
+
+        benchmarkRule.measureRepeated {
+            dataList.fastForEach { data ->
+                if (data.motionValue.isStable) {
+                    data.gestureContext.reset(0f, data.gestureContext.direction.opposite)
+                }
+            }
+            testScheduler.advanceTimeBy(16)
+            dataList.fastForEach { it.motionValue.floatValue }
         }
     }
 
@@ -217,8 +234,8 @@ class MotionValueBenchmark {
                 data.gestureContext.dragOffset += if (isMax) 0.01f else -0.01f
             }
 
-            data.motionValue.floatValue
             testScheduler.advanceTimeBy(16)
+            data.motionValue.floatValue
         }
     }
 }
