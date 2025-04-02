@@ -209,7 +209,8 @@ private class ImperativeComputations(
     override var currentSegment: SegmentData = computeCurrentSegment()
     override var currentGuaranteeState: GuaranteeState = computeCurrentGuaranteeState()
     override var currentAnimation: DiscontinuityAnimation = computeCurrentAnimation()
-    override var currentSpringState: SpringState = computeCurrentSpringState()
+    override var currentSpringState: SpringState =
+        computeCurrentSpringState(currentAnimation, currentAnimationTimeNanos)
 
     // ---- Lifecycle ------------------------------------------------------------------------------
 
@@ -281,7 +282,8 @@ private class ImperativeComputations(
             currentSegment = computeCurrentSegment()
             currentGuaranteeState = computeCurrentGuaranteeState()
             currentAnimation = computeCurrentAnimation()
-            currentSpringState = computeCurrentSpringState()
+            currentSpringState =
+                computeCurrentSpringState(currentAnimation, currentAnimationTimeNanos)
         }
 
         debugInspector?.run {

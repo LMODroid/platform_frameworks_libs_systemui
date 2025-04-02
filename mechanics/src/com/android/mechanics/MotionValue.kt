@@ -312,7 +312,22 @@ private class ObservableComputations(
     override val currentSegment by derivedStateOf { computeCurrentSegment() }
     override val currentGuaranteeState by derivedStateOf { computeCurrentGuaranteeState() }
     override val currentAnimation by derivedStateOf { computeCurrentAnimation() }
-    override val currentSpringState by derivedStateOf { computeCurrentSpringState() }
+
+    private var memoizedSpringState: SpringState = SpringState.AtRest
+    private var memoizedAnimation: DiscontinuityAnimation? = null
+    private var memoizedTimeNanos: Long = Long.MIN_VALUE
+    override val currentSpringState: SpringState
+        get() {
+            val animation = currentAnimation
+            val timeNanos = currentAnimationTimeNanos
+            return if (memoizedAnimation == animation && memoizedTimeNanos == timeNanos) {
+                memoizedSpringState
+            } else {
+                memoizedAnimation = animation
+                memoizedTimeNanos = timeNanos
+                computeCurrentSpringState(animation, timeNanos).also { memoizedSpringState = it }
+            }
+        }
 
     suspend fun keepRunning(continueRunning: () -> Boolean) {
         check(!isActive) { "MotionValue($label) is already running" }

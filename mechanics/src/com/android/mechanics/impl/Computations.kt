@@ -403,11 +403,11 @@ internal interface ComputeAnimation : ComputeGuaranteeState {
 internal interface ComputeSpringState : ComputeAnimation {
     val currentAnimation: DiscontinuityAnimation
 
-    fun computeCurrentSpringState(): SpringState {
-        with(currentAnimation) {
+    fun computeCurrentSpringState(animation: DiscontinuityAnimation, timeNanos: Long): SpringState {
+        with(animation) {
             if (isAtRest) return SpringState.AtRest
 
-            val nanosSinceAnimationStart = currentAnimationTimeNanos - springStartTimeNanos
+            val nanosSinceAnimationStart = timeNanos - springStartTimeNanos
             val updatedSpringState =
                 springStartState.calculateUpdatedState(nanosSinceAnimationStart, springParameters)
 
