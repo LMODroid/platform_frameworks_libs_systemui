@@ -37,12 +37,31 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import platform.test.motion.compose.MonotonicClockTestScope
-import platform.test.motion.compose.runMonotonicClockTest
 
 /** Benchmark, which will execute on an Android device. Previous results: go/mm-microbenchmarks */
 @RunWith(AndroidJUnit4::class)
 class MotionValueBenchmark {
     @get:Rule val benchmarkRule = BenchmarkRule()
+
+    private val tearDownOperations = mutableListOf<() -> Unit>()
+
+    /**
+     * Runs a test block within a [MonotonicClockTestScope] provided by the underlying
+     * [platform.test.motion.compose.runMonotonicClockTest] and ensures automatic cleanup.
+     *
+     * This mechanism provides a convenient way to register cleanup actions (e.g., stopping
+     * coroutines, resetting states) that should reliably run at the end of the test, simplifying
+     * test setup and teardown.
+     */
+    private fun runMonotonicClockTest(block: suspend MonotonicClockTestScope.() -> Unit) {
+        return platform.test.motion.compose.runMonotonicClockTest {
+            try {
+                block()
+            } finally {
+                tearDownOperations.fastForEach { it.invoke() }
+            }
+        }
+    }
 
     private data class TestData(
         val motionValue: MotionValue,
@@ -144,7 +163,7 @@ class MotionValueBenchmark {
 
     private fun MonotonicClockTestScope.keepRunningDuringTest(motionValue: MotionValue) {
         val keepRunningJob = launch { motionValue.keepRunning() }
-        doOnTearDown { keepRunningJob.cancel() }
+        tearDownOperations += { keepRunningJob.cancel() }
     }
 
     private val MotionSpec.Companion.ZeroToOne_AtOne

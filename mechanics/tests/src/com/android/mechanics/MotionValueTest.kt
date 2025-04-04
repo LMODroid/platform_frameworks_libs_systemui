@@ -545,7 +545,6 @@ class MotionValueTest {
     fun keepRunning_concurrentInvocationThrows() = runMonotonicClockTest {
         val underTest = MotionValue({ 1f }, FakeGestureContext, label = "Foo")
         val realJob = launch { underTest.keepRunning() }
-        doOnTearDown { realJob.cancel() }
         testScheduler.runCurrent()
 
         assertThat(realJob.isActive).isTrue()
@@ -557,6 +556,7 @@ class MotionValueTest {
             assertThat(e).hasMessageThat().contains("MotionValue(Foo) is already running")
         }
         assertThat(realJob.isActive).isTrue()
+        realJob.cancel()
     }
 
     @Test
