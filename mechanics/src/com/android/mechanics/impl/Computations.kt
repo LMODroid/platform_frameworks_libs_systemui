@@ -23,27 +23,173 @@ import androidx.compose.ui.util.fastIsFinite
 import androidx.compose.ui.util.lerp
 import com.android.mechanics.MotionValue.Companion.TAG
 import com.android.mechanics.spec.Guarantee
+import com.android.mechanics.spec.InputDirection
+import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SegmentData
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spring.SpringState
 import com.android.mechanics.spring.calculateUpdatedState
 
-internal interface ComputeSegment : CurrentFrameInput, LastFrameState, StaticConfig {
+internal abstract class Computations : CurrentFrameInput, LastFrameState, StaticConfig {
+    internal class ComputedValues(
+        val segment: SegmentData,
+        val guarantee: GuaranteeState,
+        val animation: DiscontinuityAnimation,
+    )
+
+    // currentComputedValues input
+    private var memoizedSpec: MotionSpec? = null
+    private var memoizedInput: Float = Float.MIN_VALUE
+    private var memoizedAnimationTimeNanos: Long = Long.MIN_VALUE
+    private var memoizedDirection: InputDirection = InputDirection.Min
+
+    // currentComputedValues output
+    private lateinit var memoizedComputedValues: ComputedValues
+
+    internal val currentComputedValues: ComputedValues
+        get() {
+            val currentSpec: MotionSpec = spec
+            val currentInput: Float = currentInput
+            val currentAnimationTimeNanos: Long = currentAnimationTimeNanos
+            val currentDirection: InputDirection = currentDirection
+
+            if (
+                memoizedSpec == currentSpec &&
+                    memoizedInput == currentInput &&
+                    memoizedAnimationTimeNanos == currentAnimationTimeNanos &&
+                    memoizedDirection == currentDirection
+            ) {
+                return memoizedComputedValues
+            }
+
+            memoizedSpec = currentSpec
+            memoizedInput = currentInput
+            memoizedAnimationTimeNanos = currentAnimationTimeNanos
+            memoizedDirection = currentDirection
+
+            val segment: SegmentData =
+                computeSegmentData(
+                    spec = currentSpec,
+                    input = currentInput,
+                    direction = currentDirection,
+                )
+
+            val segmentChange: SegmentChangeType =
+                getSegmentChangeType(
+                    segment = segment,
+                    input = currentInput,
+                    direction = currentDirection,
+                )
+
+            val guarantee: GuaranteeState =
+                computeGuaranteeState(
+                    segment = segment,
+                    segmentChange = segmentChange,
+                    input = currentInput,
+                )
+
+            val animation: DiscontinuityAnimation =
+                computeAnimation(
+                    segment = segment,
+                    guarantee = guarantee,
+                    segmentChange = segmentChange,
+                    spec = currentSpec,
+                    input = currentInput,
+                    animationTimeNanos = currentAnimationTimeNanos,
+                )
+
+            return ComputedValues(segment, guarantee, animation).also {
+                memoizedComputedValues = it
+            }
+        }
+
+    // currentSpringState input
+    private var memoizedAnimation: DiscontinuityAnimation? = null
+    private var memoizedTimeNanos: Long = Long.MIN_VALUE
+
+    // currentSpringState output
+    private var memoizedSpringState: SpringState = SpringState.AtRest
+
+    val currentSpringState: SpringState
+        get() {
+            val animation = currentComputedValues.animation
+            val timeNanos = currentAnimationTimeNanos
+            if (memoizedAnimation == animation && memoizedTimeNanos == timeNanos) {
+                return memoizedSpringState
+            }
+            memoizedAnimation = animation
+            memoizedTimeNanos = timeNanos
+            return computeSpringState(animation, timeNanos).also { memoizedSpringState = it }
+        }
+
+    val isSameSegmentAndAtRest: Boolean
+        get() =
+            lastAnimation.isAtRest &&
+                lastSegment.spec == spec &&
+                lastSegment.isValidForInput(currentInput, currentDirection)
+
+    val currentDirectMapped: Float
+        get() =
+            if (isSameSegmentAndAtRest) {
+                lastSegment.mapping.map(currentInput)
+            } else {
+                val values = currentComputedValues
+                values.segment.mapping.map(currentInput) - values.animation.targetValue
+            }
+
+    private val currentAnimatedDelta: Float
+        get() =
+            if (isSameSegmentAndAtRest) {
+                0f
+            } else {
+                currentComputedValues.animation.targetValue + currentSpringState.displacement
+            }
+
+    val output: Float
+        get() =
+            if (isSameSegmentAndAtRest) {
+                lastSegment.mapping.map(currentInput)
+            } else {
+                currentDirectMapped + currentAnimatedDelta
+            }
+
+    val outputTarget: Float
+        get() =
+            if (isSameSegmentAndAtRest) {
+                lastAnimation.targetValue
+            } else {
+                currentDirectMapped + currentComputedValues.animation.targetValue
+            }
+
+    val isStable: Boolean
+        get() =
+            if (isSameSegmentAndAtRest) {
+                true
+            } else {
+                currentSpringState == SpringState.AtRest
+            }
+
+    fun <T> semanticState(semanticKey: SemanticKey<T>): T? {
+        return with(if (isSameSegmentAndAtRest) lastSegment else currentComputedValues.segment) {
+            spec.semanticState(semanticKey, key)
+        }
+    }
+
     /**
      * The current segment, which defines the [Mapping] function used to transform the input to the
      * output.
      *
-     * While both [spec] and [currentDirection] remain the same, and [currentInput] is within the
-     * segment (see [SegmentData.isValidForInput]), this is [lastSegment].
+     * While both [spec] and [direction] remain the same, and [input] is within the segment (see
+     * [SegmentData.isValidForInput]), this is [LastFrameState.lastSegment].
      *
      * Otherwise, [MotionSpec.onChangeSegment] is queried for an up-dated segment.
      */
-    fun computeCurrentSegment(): SegmentData {
-        val lastSegment = lastSegment
-        val input = currentInput
-        val direction = currentDirection
-
+    private fun computeSegmentData(
+        spec: MotionSpec,
+        input: Float,
+        direction: InputDirection,
+    ): SegmentData {
         val specChanged = lastSegment.spec != spec
         return if (specChanged || !lastSegment.isValidForInput(input, direction)) {
             spec.onChangeSegment(lastSegment, input, direction)
@@ -51,48 +197,43 @@ internal interface ComputeSegment : CurrentFrameInput, LastFrameState, StaticCon
             lastSegment
         }
     }
-}
 
-internal interface ComputeGuaranteeState : ComputeSegment {
-    val currentSegment: SegmentData
+    /** Computes the [SegmentChangeType] between [LastFrameState.lastSegment] and [segment]. */
+    private fun getSegmentChangeType(
+        segment: SegmentData,
+        input: Float,
+        direction: InputDirection,
+    ): SegmentChangeType {
+        if (segment.key == lastSegment.key) {
+            return SegmentChangeType.Same
+        }
 
-    /** Computes the [SegmentChangeType] between [lastSegment] and [currentSegment]. */
-    val segmentChangeType: SegmentChangeType
-        get() {
-            val currentSegment = currentSegment
-            val lastSegment = lastSegment
+        if (
+            segment.key.minBreakpoint == lastSegment.key.minBreakpoint &&
+                segment.key.maxBreakpoint == lastSegment.key.maxBreakpoint
+        ) {
+            return SegmentChangeType.SameOppositeDirection
+        }
 
-            if (currentSegment.key == lastSegment.key) {
-                return SegmentChangeType.Same
-            }
-
-            if (
-                currentSegment.key.minBreakpoint == lastSegment.key.minBreakpoint &&
-                    currentSegment.key.maxBreakpoint == lastSegment.key.maxBreakpoint
-            ) {
-                return SegmentChangeType.SameOppositeDirection
-            }
-
-            val currentSpec = currentSegment.spec
-            val lastSpec = lastSegment.spec
-            if (currentSpec !== lastSpec) {
-                // Determine/guess whether the segment change was due to the changed spec, or
-                // whether lastSpec would return the same segment key for the update input.
-                val lastSpecSegmentForSameInput =
-                    lastSpec.segmentAtInput(currentInput, currentDirection).key
-                if (currentSegment.key != lastSpecSegmentForSameInput) {
-                    // Note: this might not be correct if the new [MotionSpec.segmentHandlers] were
-                    // involved.
-                    return SegmentChangeType.Spec
-                }
-            }
-
-            return if (currentSegment.direction == lastSegment.direction) {
-                SegmentChangeType.Traverse
-            } else {
-                SegmentChangeType.Direction
+        val currentSpec = segment.spec
+        val lastSpec = lastSegment.spec
+        if (currentSpec !== lastSpec) {
+            // Determine/guess whether the segment change was due to the changed spec, or
+            // whether lastSpec would return the same segment key for the update input.
+            val lastSpecSegmentForSameInput = lastSpec.segmentAtInput(input, direction).key
+            if (segment.key != lastSpecSegmentForSameInput) {
+                // Note: this might not be correct if the new [MotionSpec.segmentHandlers] were
+                // involved.
+                return SegmentChangeType.Spec
             }
         }
+
+        return if (segment.direction == lastSegment.direction) {
+            SegmentChangeType.Traverse
+        } else {
+            SegmentChangeType.Direction
+        }
+    }
 
     /**
      * Computes the fraction of [position] between [lastInput] and [currentInput].
@@ -110,26 +251,33 @@ internal interface ComputeGuaranteeState : ComputeSegment {
      * Of course, this is a simplification that assumes the input velocity was uniform during the
      * last frame, but that is likely good enough.
      */
-    fun lastFrameFractionOfPosition(position: Float): Float {
-        return ((position - lastInput) / (currentInput - lastInput)).fastCoerceIn(0f, 1f)
+    private fun lastFrameFractionOfPosition(
+        position: Float,
+        lastInput: Float,
+        input: Float,
+    ): Float {
+        return ((position - lastInput) / (input - lastInput)).fastCoerceIn(0f, 1f)
     }
 
     /**
-     * The [GuaranteeState] for [currentSegment].
+     * The [GuaranteeState] for [segment].
      *
      * Without a segment change, this carries forward [lastGuaranteeState], adjusted to the new
      * input if needed.
      *
-     * If a segment change happened, this is a new [GuaranteeState] for the [currentSegment]. Any
-     * remaining [lastGuaranteeState] will be consumed in [currentAnimation].
+     * If a segment change happened, this is a new [GuaranteeState] for the [segment]. Any remaining
+     * [LastFrameState.lastGuaranteeState] will be consumed in [currentAnimation].
      */
-    fun computeCurrentGuaranteeState(): GuaranteeState {
-        val currentSegment = currentSegment
-        val entryBreakpoint = currentSegment.entryBreakpoint
+    private fun computeGuaranteeState(
+        segment: SegmentData,
+        segmentChange: SegmentChangeType,
+        input: Float,
+    ): GuaranteeState {
+        val entryBreakpoint = segment.entryBreakpoint
 
         // First, determine the origin of the guarantee computations
         val guaranteeOriginState =
-            when (segmentChangeType) {
+            when (segmentChange) {
                 // Still in the segment, the origin is carried over from the last frame
                 SegmentChangeType.Same -> lastGuaranteeState
                 // The direction changed within the same segment, no guarantee to enforce.
@@ -141,7 +289,7 @@ internal interface ComputeGuaranteeState : ComputeSegment {
                     // directionChangeSlop, the guarantee starts at the current input.
                     GuaranteeState.withStartValue(
                         when (entryBreakpoint.guarantee) {
-                            is Guarantee.InputDelta -> currentInput
+                            is Guarantee.InputDelta -> input
                             is Guarantee.GestureDragDelta -> currentGestureDragOffset
                             is Guarantee.None -> return GuaranteeState.Inactive
                         }
@@ -159,7 +307,11 @@ internal interface ComputeGuaranteeState : ComputeSegment {
                                 // is sampled, interpolate it according to when the breakpoint was
                                 // crossed in the last frame.
                                 val fractionalBreakpointPos =
-                                    lastFrameFractionOfPosition(entryBreakpoint.position)
+                                    lastFrameFractionOfPosition(
+                                        entryBreakpoint.position,
+                                        lastInput,
+                                        input,
+                                    )
 
                                 lerp(
                                     lastGestureDragOffset,
@@ -178,49 +330,43 @@ internal interface ComputeGuaranteeState : ComputeSegment {
         // Finally, update the origin state with the current guarantee value.
         return guaranteeOriginState.withCurrentValue(
             when (entryBreakpoint.guarantee) {
-                is Guarantee.InputDelta -> currentInput
+                is Guarantee.InputDelta -> input
                 is Guarantee.GestureDragDelta -> currentGestureDragOffset
                 is Guarantee.None -> return GuaranteeState.Inactive
             },
-            currentSegment.direction,
+            segment.direction,
         )
     }
-}
-
-internal interface ComputeAnimation : ComputeGuaranteeState {
-    val currentGuaranteeState: GuaranteeState
 
     /**
      * The [DiscontinuityAnimation] in effect for the current frame.
      *
      * This describes the starting condition of the spring animation, and is only updated if the
      * spring animation must restarted: that is, if yet another discontinuity must be animated as a
-     * result of a segment change, or if the [currentGuaranteeState] requires the spring to be
-     * tightened.
+     * result of a segment change, or if the [guarantee] requires the spring to be tightened.
      *
      * See [currentSpringState] for the continuously updated, animated spring values.
      */
-    fun computeCurrentAnimation(): DiscontinuityAnimation {
-        val currentSegment = currentSegment
-        val lastSegment = lastSegment
-        val currentSpec = spec
-        val currentInput = currentInput
-        val lastAnimation = lastAnimation
-
-        return when (segmentChangeType) {
+    private fun computeAnimation(
+        segment: SegmentData,
+        guarantee: GuaranteeState,
+        segmentChange: SegmentChangeType,
+        spec: MotionSpec,
+        input: Float,
+        animationTimeNanos: Long,
+    ): DiscontinuityAnimation {
+        return when (segmentChange) {
             SegmentChangeType.Same -> {
                 if (lastAnimation.isAtRest) {
                     // Nothing to update if no animation is ongoing
                     lastAnimation
-                } else if (lastGuaranteeState == currentGuaranteeState) {
+                } else if (lastGuaranteeState == guarantee) {
                     // Nothing to update if the spring must not be tightened.
                     lastAnimation
                 } else {
                     // Compute the updated spring parameters
                     val tightenedSpringParameters =
-                        currentGuaranteeState.updatedSpringParameters(
-                            currentSegment.entryBreakpoint
-                        )
+                        guarantee.updatedSpringParameters(segment.entryBreakpoint)
 
                     lastAnimation.copy(
                         springStartState = lastSpringState,
@@ -234,8 +380,8 @@ internal interface ComputeAnimation : ComputeGuaranteeState {
             SegmentChangeType.Direction,
             SegmentChangeType.Spec -> {
                 // Determine the delta in the output, as produced by the old and new mapping.
-                val currentMapping = currentSegment.mapping.map(currentInput)
-                val lastMapping = lastSegment.mapping.map(currentInput)
+                val currentMapping = segment.mapping.map(input)
+                val lastMapping = lastSegment.mapping.map(input)
                 val delta = currentMapping - lastMapping
 
                 val deltaIsFinite = delta.fastIsFinite()
@@ -244,9 +390,9 @@ internal interface ComputeAnimation : ComputeGuaranteeState {
                         TAG,
                         "Delta between mappings is undefined!\n" +
                             "  MotionValue: $label\n" +
-                            "  input: $currentInput\n" +
+                            "  input: $input\n" +
                             "  lastMapping: $lastMapping (lastSegment: $lastSegment)\n" +
-                            "  currentMapping: $currentMapping (currentSegment: $currentSegment)",
+                            "  currentMapping: $currentMapping (currentSegment: $segment)",
                     )
                 }
 
@@ -255,10 +401,10 @@ internal interface ComputeAnimation : ComputeGuaranteeState {
                     lastAnimation
                 } else {
                     val springParameters =
-                        if (segmentChangeType == SegmentChangeType.Direction) {
-                            currentSegment.entryBreakpoint.spring
+                        if (segmentChange == SegmentChangeType.Direction) {
+                            segment.entryBreakpoint.spring
                         } else {
-                            currentSpec.resetSpring
+                            spec.resetSpring
                         }
 
                     val newTarget = delta - lastSpringState.displacement
@@ -275,10 +421,10 @@ internal interface ComputeAnimation : ComputeGuaranteeState {
                 // Process all breakpoints traversed, in order.
                 // This is involved due to the guarantees - they have to be applied, one after the
                 // other, before crossing the next breakpoint.
-                val currentDirection = currentSegment.direction
+                val currentDirection = segment.direction
 
-                with(currentSpec[currentDirection]) {
-                    val targetIndex = findSegmentIndex(currentSegment.key)
+                with(spec[currentDirection]) {
+                    val targetIndex = findSegmentIndex(segment.key)
                     val sourceIndex = findSegmentIndex(lastSegment.key)
                     check(targetIndex != sourceIndex)
 
@@ -297,12 +443,12 @@ internal interface ComputeAnimation : ComputeGuaranteeState {
                             breakpoints[segmentIndex + directionOffset.fastCoerceAtLeast(0)]
 
                         val nextBreakpointFrameFraction =
-                            lastFrameFractionOfPosition(nextBreakpoint.position)
+                            lastFrameFractionOfPosition(nextBreakpoint.position, lastInput, input)
 
                         val nextBreakpointCrossTime =
                             lerp(
                                 lastFrameTimeNanos,
-                                currentAnimationTimeNanos,
+                                animationTimeNanos,
                                 nextBreakpointFrameFraction,
                             )
                         if (
@@ -353,7 +499,7 @@ internal interface ComputeAnimation : ComputeGuaranteeState {
                             Log.wtf(
                                 TAG,
                                 "Delta between breakpoints is undefined!\n" +
-                                    "  MotionValue: $label\n" +
+                                    "  MotionValue: ${label}\n" +
                                     "  position: ${nextBreakpoint.position}\n" +
                                     "  before: $beforeBreakpoint (mapping: $mappingBefore)\n" +
                                     "  after: $afterBreakpoint (mapping: $mappingAfter)",
@@ -388,22 +534,18 @@ internal interface ComputeAnimation : ComputeGuaranteeState {
                         springState = springState.nudge(velocityDelta = directMappedVelocity)
                     }
 
-                    val tightened =
-                        currentGuaranteeState.updatedSpringParameters(
-                            currentSegment.entryBreakpoint
-                        )
+                    val tightened = guarantee.updatedSpringParameters(segment.entryBreakpoint)
 
                     DiscontinuityAnimation(springTarget, springState, tightened, lastAnimationTime)
                 }
             }
         }
     }
-}
 
-internal interface ComputeSpringState : ComputeAnimation {
-    val currentAnimation: DiscontinuityAnimation
-
-    fun computeCurrentSpringState(animation: DiscontinuityAnimation, timeNanos: Long): SpringState {
+    private fun computeSpringState(
+        animation: DiscontinuityAnimation,
+        timeNanos: Long,
+    ): SpringState {
         with(animation) {
             if (isAtRest) return SpringState.AtRest
 
@@ -416,62 +558,6 @@ internal interface ComputeSpringState : ComputeAnimation {
             } else {
                 updatedSpringState
             }
-        }
-    }
-}
-
-internal interface Computations : ComputeSpringState {
-    val currentSpringState: SpringState
-
-    val isSameSegmentAndAtRest: Boolean
-        get() =
-            lastAnimation.isAtRest &&
-                lastSegment.spec == spec &&
-                lastSegment.isValidForInput(currentInput, currentDirection)
-
-    val currentDirectMapped: Float
-        get() =
-            if (isSameSegmentAndAtRest) {
-                lastSegment.mapping.map(currentInput)
-            } else {
-                currentSegment.mapping.map(currentInput) - currentAnimation.targetValue
-            }
-
-    val currentAnimatedDelta: Float
-        get() =
-            if (isSameSegmentAndAtRest) {
-                0f
-            } else {
-                currentAnimation.targetValue + currentSpringState.displacement
-            }
-
-    val output: Float
-        get() =
-            if (isSameSegmentAndAtRest) {
-                lastSegment.mapping.map(currentInput)
-            } else {
-                currentDirectMapped + currentAnimatedDelta
-            }
-
-    val outputTarget: Float
-        get() =
-            if (isSameSegmentAndAtRest) {
-                lastAnimation.targetValue
-            } else {
-                currentDirectMapped + currentAnimation.targetValue
-            }
-
-    val isStable: Boolean
-        get() =
-            if (isSameSegmentAndAtRest) {
-                true
-            } else {
-                currentSpringState == SpringState.AtRest
-            }
-
-    fun <T> semanticState(semanticKey: SemanticKey<T>): T? {
-        return with(if (isSameSegmentAndAtRest) lastSegment else currentSegment) {
-            spec.semanticState(semanticKey, key)
         }
     }
 }

@@ -17,7 +17,6 @@
 package com.android.mechanics
 
 import androidx.compose.runtime.FloatState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -153,7 +152,7 @@ class MotionValue(
 
     /** The current segment used to compute the output. */
     val segmentKey: SegmentKey
-        get() = impl.currentSegment.key
+        get() = impl.currentComputedValues.segment.key
 
     /**
      * Keeps the [MotionValue]'s animated output running.
@@ -254,7 +253,7 @@ private class ObservableComputations(
     initialSpec: MotionSpec = MotionSpec.Empty,
     override val stableThreshold: Float,
     override val label: String?,
-) : Computations {
+) : Computations() {
 
     // ----  CurrentFrameInput ---------------------------------------------------------------------
 
@@ -309,26 +308,6 @@ private class ObservableComputations(
 
     // ---- Computations ---------------------------------------------------------------------------
 
-    override val currentSegment by derivedStateOf { computeCurrentSegment() }
-    override val currentGuaranteeState by derivedStateOf { computeCurrentGuaranteeState() }
-    override val currentAnimation by derivedStateOf { computeCurrentAnimation() }
-
-    private var memoizedSpringState: SpringState = SpringState.AtRest
-    private var memoizedAnimation: DiscontinuityAnimation? = null
-    private var memoizedTimeNanos: Long = Long.MIN_VALUE
-    override val currentSpringState: SpringState
-        get() {
-            val animation = currentAnimation
-            val timeNanos = currentAnimationTimeNanos
-            return if (memoizedAnimation == animation && memoizedTimeNanos == timeNanos) {
-                memoizedSpringState
-            } else {
-                memoizedAnimation = animation
-                memoizedTimeNanos = timeNanos
-                computeCurrentSpringState(animation, timeNanos).also { memoizedSpringState = it }
-            }
-        }
-
     suspend fun keepRunning(continueRunning: () -> Boolean) {
         check(!isActive) { "MotionValue($label) is already running" }
         isActive = true
@@ -336,9 +315,10 @@ private class ObservableComputations(
         // These `captured*` values will be applied to the `last*` values, at the beginning
         // of the each new frame.
         // TODO(b/397837971): Encapsulate the state in a StateRecord.
-        var capturedSegment = currentSegment
-        var capturedGuaranteeState = currentGuaranteeState
-        var capturedAnimation = currentAnimation
+        val initialValues = currentComputedValues
+        var capturedSegment = initialValues.segment
+        var capturedGuaranteeState = initialValues.guarantee
+        var capturedAnimation = initialValues.animation
         var capturedSpringState = currentSpringState
         var capturedFrameTimeNanos = currentAnimationTimeNanos
         var capturedInput = currentInput
@@ -393,18 +373,21 @@ private class ObservableComputations(
 
                 var scheduleNextFrame = false
                 if (!isSameSegmentAndAtRest) {
-                    if (capturedSegment != currentSegment) {
-                        capturedSegment = currentSegment
+                    // Read currentComputedValues only once and update it, if necessary
+                    val currentValues = currentComputedValues
+
+                    if (capturedSegment != currentValues.segment) {
+                        capturedSegment = currentValues.segment
                         scheduleNextFrame = true
                     }
 
-                    if (capturedGuaranteeState != currentGuaranteeState) {
-                        capturedGuaranteeState = currentGuaranteeState
+                    if (capturedGuaranteeState != currentValues.guarantee) {
+                        capturedGuaranteeState = currentValues.guarantee
                         scheduleNextFrame = true
                     }
 
-                    if (capturedAnimation != currentAnimation) {
-                        capturedAnimation = currentAnimation
+                    if (capturedAnimation != currentValues.animation) {
+                        capturedAnimation = currentValues.animation
                         scheduleNextFrame = true
                     }
 

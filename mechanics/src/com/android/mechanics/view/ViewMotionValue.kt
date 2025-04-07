@@ -92,7 +92,7 @@ class ViewMotionValue(
 
     /** The current segment used to compute the output. */
     val segmentKey: SegmentKey
-        get() = impl.currentSegment.key
+        get() = impl.currentComputedValues.segment.key
 
     val label: String? by impl::label
 
@@ -156,7 +156,7 @@ private class ImperativeComputations(
     initialSpec: MotionSpec,
     override val stableThreshold: Float,
     override val label: String?,
-) : Computations, GestureContextUpdateListener {
+) : Computations(), GestureContextUpdateListener {
 
     init {
         gestureContext.addUpdateCallback(this)
@@ -203,14 +203,6 @@ private class ImperativeComputations(
     override var lastGestureDragOffset: Float = currentGestureDragOffset
     override var directMappedVelocity: Float = 0f
     var lastDirection: InputDirection = currentDirection
-
-    // ---- Computations ---------------------------------------------------------------------------
-
-    override var currentSegment: SegmentData = computeCurrentSegment()
-    override var currentGuaranteeState: GuaranteeState = computeCurrentGuaranteeState()
-    override var currentAnimation: DiscontinuityAnimation = computeCurrentAnimation()
-    override var currentSpringState: SpringState =
-        computeCurrentSpringState(currentAnimation, currentAnimationTimeNanos)
 
     // ---- Lifecycle ------------------------------------------------------------------------------
 
@@ -278,13 +270,8 @@ private class ImperativeComputations(
 
         currentAnimationTimeNanos = frameTimeMillis * 1_000_000L
 
-        if (!isSameSegmentAndAtRest) {
-            currentSegment = computeCurrentSegment()
-            currentGuaranteeState = computeCurrentGuaranteeState()
-            currentAnimation = computeCurrentAnimation()
-            currentSpringState =
-                computeCurrentSpringState(currentAnimation, currentAnimationTimeNanos)
-        }
+        // Read currentComputedValues only once and update it, if necessary
+        val currentValues = currentComputedValues
 
         debugInspector?.run {
             frame =
@@ -294,8 +281,8 @@ private class ImperativeComputations(
                     currentGestureDragOffset,
                     currentAnimationTimeNanos,
                     currentSpringState,
-                    currentSegment,
-                    currentAnimation,
+                    currentValues.segment,
+                    currentValues.animation,
                 )
         }
 
@@ -314,18 +301,18 @@ private class ImperativeComputations(
         }
 
         var isAnimationFinished = isStable
-        if (lastSegment != currentSegment) {
-            lastSegment = currentSegment
+        if (lastSegment != currentValues.segment) {
+            lastSegment = currentValues.segment
             isAnimationFinished = false
         }
 
-        if (lastGuaranteeState != currentGuaranteeState) {
-            lastGuaranteeState = currentGuaranteeState
+        if (lastGuaranteeState != currentValues.guarantee) {
+            lastGuaranteeState = currentValues.guarantee
             isAnimationFinished = false
         }
 
-        if (lastAnimation != currentAnimation) {
-            lastAnimation = currentAnimation
+        if (lastAnimation != currentValues.animation) {
+            lastAnimation = currentValues.animation
             isAnimationFinished = false
         }
 
