@@ -210,6 +210,26 @@ class MotionValueTest {
         }
 
     @Test
+    // Regression test for b/409726626
+    fun segmentChange_animationAtRest_doesNotAffectVelocity() =
+        motion.goldenTest(
+            spec =
+                specBuilder(Mapping.Zero)
+                    .toBreakpoint(1f)
+                    .continueWith(Mapping.Fixed(20f))
+                    .toBreakpoint(2f)
+                    .continueWith(Mapping.Fixed(20f))
+                    .toBreakpoint(3f)
+                    .completeWith(Mapping.Fixed(10f)),
+            stableThreshold = 1f,
+        ) {
+            this.updateValue(1.5f)
+            awaitStable()
+            animateValueTo(3f)
+            awaitStable()
+        }
+
+    @Test
     fun specChange_shiftSegmentBackwards_doesNotAnimateWithinSegment_animatesSegmentChange() {
         fun generateSpec(offset: Float) =
             specBuilder(Mapping.Zero)

@@ -125,41 +125,24 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
 
     val isSameSegmentAndAtRest: Boolean
         get() =
-            lastAnimation.isAtRest &&
+            lastSpringState == SpringState.AtRest &&
                 lastSegment.spec == spec &&
                 lastSegment.isValidForInput(currentInput, currentDirection)
-
-    val currentDirectMapped: Float
-        get() =
-            if (isSameSegmentAndAtRest) {
-                lastSegment.mapping.map(currentInput)
-            } else {
-                val values = currentComputedValues
-                values.segment.mapping.map(currentInput) - values.animation.targetValue
-            }
-
-    private val currentAnimatedDelta: Float
-        get() =
-            if (isSameSegmentAndAtRest) {
-                0f
-            } else {
-                currentComputedValues.animation.targetValue + currentSpringState.displacement
-            }
 
     val output: Float
         get() =
             if (isSameSegmentAndAtRest) {
                 lastSegment.mapping.map(currentInput)
             } else {
-                currentDirectMapped + currentAnimatedDelta
+                outputTarget + currentSpringState.displacement
             }
 
     val outputTarget: Float
         get() =
             if (isSameSegmentAndAtRest) {
-                lastAnimation.targetValue
+                lastSegment.mapping.map(currentInput)
             } else {
-                currentDirectMapped + currentComputedValues.animation.targetValue
+                currentComputedValues.segment.mapping.map(currentInput)
             }
 
     val isStable: Boolean
@@ -174,6 +157,24 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
         return with(if (isSameSegmentAndAtRest) lastSegment else currentComputedValues.segment) {
             spec.semanticState(semanticKey, key)
         }
+    }
+
+    fun computeDirectMappedVelocity(frameDurationNanos: Long): Float {
+        val directMappedDelta =
+            if (
+                lastSegment.spec == spec &&
+                    lastSegment.isValidForInput(currentInput, currentDirection)
+            ) {
+                lastSegment.mapping.map(currentInput) - lastSegment.mapping.map(lastInput)
+            } else {
+                val springChange = currentSpringState.displacement - lastSpringState.displacement
+
+                currentComputedValues.segment.mapping.map(currentInput) -
+                    lastSegment.mapping.map(lastInput) + springChange
+            }
+
+        val frameDuration = frameDurationNanos / 1_000_000_000.0
+        return (directMappedDelta / frameDuration).toFloat()
     }
 
     /**
@@ -357,9 +358,9 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
     ): DiscontinuityAnimation {
         return when (segmentChange) {
             SegmentChangeType.Same -> {
-                if (lastAnimation.isAtRest) {
+                if (lastSpringState == SpringState.AtRest) {
                     // Nothing to update if no animation is ongoing
-                    lastAnimation
+                    DiscontinuityAnimation.None
                 } else if (lastGuaranteeState == guarantee) {
                     // Nothing to update if the spring must not be tightened.
                     lastAnimation
@@ -409,7 +410,6 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
 
                     val newTarget = delta - lastSpringState.displacement
                     DiscontinuityAnimation(
-                        newTarget,
                         SpringState(-newTarget, lastSpringState.velocity + directMappedVelocity),
                         springParameters,
                         lastFrameTimeNanos,
@@ -434,7 +434,6 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
                     var lastAnimationTime = lastFrameTimeNanos
                     var guaranteeState = lastGuaranteeState
                     var springState = lastSpringState
-                    var springTarget = lastAnimation.targetValue
                     var springParameters = lastAnimation.springParameters
 
                     var segmentIndex = sourceIndex
@@ -507,7 +506,6 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
                         }
 
                         if (deltaIsFinite) {
-                            springTarget += delta
                             springState = springState.nudge(displacementDelta = -delta)
                         }
                         segmentIndex += directionOffset
@@ -536,7 +534,7 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
 
                     val tightened = guarantee.updatedSpringParameters(segment.entryBreakpoint)
 
-                    DiscontinuityAnimation(springTarget, springState, tightened, lastAnimationTime)
+                    DiscontinuityAnimation(springState, tightened, lastAnimationTime)
                 }
             }
         }

@@ -226,7 +226,7 @@ class ViewMotionValueTest {
             underTest.input = 1f
             repeat(60) { animatorTestRule.advanceTimeBy(16L) }
 
-            assertThat(invocationCount).isEqualTo(16)
+            assertThat(invocationCount).isEqualTo(17)
         }
     }
 

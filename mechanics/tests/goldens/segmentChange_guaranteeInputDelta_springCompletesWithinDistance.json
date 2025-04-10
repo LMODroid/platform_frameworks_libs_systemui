@@ -113,12 +113,12 @@
           "dampingRatio": 0.98333335
         },
         {
-          "stiffness": 100000,
-          "dampingRatio": 1
+          "stiffness": 43737.062,
+          "dampingRatio": 0.98333335
         },
         {
-          "stiffness": 100000,
-          "dampingRatio": 1
+          "stiffness": 43737.062,
+          "dampingRatio": 0.98333335
         }
       ]
     },

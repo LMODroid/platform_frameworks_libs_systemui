@@ -290,12 +290,8 @@ private class ImperativeComputations(
 
         // Prepare last* state
         if (isAnimatingUninterrupted) {
-            val currentDirectMapped = currentDirectMapped
-            val lastDirectMapped = lastSegment.mapping.map(lastInput) - lastAnimation.targetValue
-
-            val frameDuration = (currentAnimationTimeNanos - lastFrameTimeNanos) / 1_000_000_000.0
-            val staticDelta = (currentDirectMapped - lastDirectMapped)
-            directMappedVelocity = (staticDelta / frameDuration).toFloat()
+            directMappedVelocity =
+                computeDirectMappedVelocity(currentAnimationTimeNanos - lastFrameTimeNanos)
         } else {
             directMappedVelocity = 0f
         }

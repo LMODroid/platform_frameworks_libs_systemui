@@ -26,7 +26,6 @@ import com.android.mechanics.spring.SpringState
  * output values for the same input.
  */
 internal data class DiscontinuityAnimation(
-    val targetValue: Float,
     val springStartState: SpringState,
     val springParameters: SpringParameters,
     val springStartTimeNanos: Long,
@@ -37,7 +36,6 @@ internal data class DiscontinuityAnimation(
     companion object {
         val None =
             DiscontinuityAnimation(
-                targetValue = 0f,
                 springStartState = SpringState.AtRest,
                 springParameters = SpringParameters.Snap,
                 springStartTimeNanos = 0L,

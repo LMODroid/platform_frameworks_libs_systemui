@@ -76,10 +76,10 @@ internal constructor(
         get() = segment.key
 
     val output: Float
-        get() = currentDirectMapped + (animation.targetValue + springState.displacement)
+        get() = segment.mapping.map(input) + springState.displacement
 
     val outputTarget: Float
-        get() = currentDirectMapped + animation.targetValue
+        get() = segment.mapping.map(input)
 
     fun <T> semantic(semanticKey: SemanticKey<T>): T? {
         return segment.semantic(semanticKey)
@@ -87,7 +87,4 @@ internal constructor(
 
     val semantics: List<SemanticValue<*>>
         get() = with(segment) { spec.semantics(key) }
-
-    private val currentDirectMapped: Float
-        get() = segment.mapping.map(input) - animation.targetValue
 }
