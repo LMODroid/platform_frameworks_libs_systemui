@@ -59,7 +59,7 @@ class DistanceGestureContext(
     }
 
     companion object {
-
+        @JvmStatic
         fun create(
             context: Context,
             initialDragOffset: Float = 0f,

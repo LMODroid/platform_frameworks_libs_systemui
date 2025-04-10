@@ -44,7 +44,9 @@ fun interface ViewMotionValueListener {
  *
  * See the documentation of [MotionValue].
  */
-class ViewMotionValue(
+class ViewMotionValue
+@JvmOverloads
+constructor(
     initialInput: Float,
     gestureContext: ViewGestureContext,
     initialSpec: MotionSpec = MotionSpec.Empty,
