@@ -1,4 +1,4 @@
-// Copyright (C) 2024 The Android Open Source Project
+// Copyright (C) 2025 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,45 +11,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
 
 package {
-    default_team: "trendy_team_motion",
     default_applicable_licenses: ["Android-Apache-2.0"],
+    default_team: "trendy_team_motion",
 }
 
-android_test {
-    name: "mechanics_tests",
+android_library {
+    name: "mechanics-testing",
     manifest: "AndroidManifest.xml",
-    defaults: ["MotionTestDefaults"],
-    test_suites: ["device-tests"],
-
     srcs: [
         "src/**/*.kt",
-
-        // TODO(b/240432457): Depend on mechanics directly
-        ":mechanics-srcs",
     ],
-
     static_libs: [
-        // ":mechanics" dependencies
-        "androidx.compose.runtime_runtime",
-        "androidx.compose.material3_material3",
-        "androidx.compose.ui_ui-util",
-        "androidx.compose.foundation_foundation-layout",
-
-        // ":mechanics_tests" dependencies
-        "//frameworks/libs/systemui/mechanics:mechanics-testing",
-        "androidx.compose.animation_animation-core",
+        "//frameworks/libs/systemui/mechanics:mechanics",
         "platform-test-annotations",
         "PlatformMotionTestingCompose",
+        "androidx.compose.runtime_runtime",
         "androidx.compose.ui_ui-test-junit4",
-        "androidx.compose.ui_ui-test-manifest",
-        "androidx.test.runner",
-        "androidx.test.ext.junit",
-        "kotlin-test",
         "testables",
         "truth",
     ],
-    asset_dirs: ["goldens"],
-    kotlincflags: ["-Xjvm-default=all"],
 }
