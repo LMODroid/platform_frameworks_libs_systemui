@@ -14,9 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.mechanics.spec
+package com.android.mechanics.spec.builder
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.mechanics.spec.BreakpointKey
+import com.android.mechanics.spec.Guarantee
+import com.android.mechanics.spec.Mapping
+import com.android.mechanics.spec.SemanticKey
+import com.android.mechanics.spec.buildDirectionalMotionSpec
+import com.android.mechanics.spec.with
 import com.android.mechanics.spring.SpringParameters
 import com.android.mechanics.testing.DirectionalMotionSpecSubject.Companion.assertThat
 import kotlin.test.assertFailsWith
@@ -24,7 +30,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class DirectionalMotionSpecBuilderTest {
+class DirectionalBuilderImplTest {
 
     @Test
     fun directionalSpec_buildEmptySpec() {

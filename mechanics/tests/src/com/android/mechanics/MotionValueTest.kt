@@ -28,9 +28,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.mechanics.spec.Breakpoint
 import com.android.mechanics.spec.BreakpointKey
-import com.android.mechanics.spec.CanBeLastSegment
 import com.android.mechanics.spec.DirectionalMotionSpec
-import com.android.mechanics.spec.DirectionalMotionSpecBuilder
 import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
@@ -40,6 +38,7 @@ import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spec.SemanticValue
 import com.android.mechanics.spec.buildDirectionalMotionSpec
 import com.android.mechanics.spec.builder
+import com.android.mechanics.spec.builder.DirectionalBuilderFn
 import com.android.mechanics.spec.reverseBuilder
 import com.android.mechanics.spec.with
 import com.android.mechanics.testing.CapturedSemantics
@@ -766,7 +765,7 @@ class MotionValueTest {
         fun specBuilder(
             initialMapping: Mapping = Mapping.Identity,
             semantics: List<SemanticValue<*>> = emptyList(),
-            init: DirectionalMotionSpecBuilder.() -> CanBeLastSegment,
+            init: DirectionalBuilderFn,
         ): MotionSpec {
             return MotionSpec(
                 buildDirectionalMotionSpec(matStandardDefault, initialMapping, semantics, init),

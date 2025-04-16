@@ -17,9 +17,6 @@
 package com.android.mechanics.spec
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.android.mechanics.spec.DirectionalMotionSpecBuilderTest.Companion.S1
-import com.android.mechanics.spec.DirectionalMotionSpecBuilderTest.Companion.S2
-import com.android.mechanics.spec.DirectionalMotionSpecBuilderTest.Companion.Spring
 import com.android.mechanics.spring.SpringParameters
 import com.android.mechanics.testing.BreakpointSubject.Companion.assertThat
 import com.google.common.truth.Truth.assertThat
