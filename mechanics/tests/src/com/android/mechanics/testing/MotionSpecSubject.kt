@@ -20,16 +20,60 @@ import com.android.mechanics.spec.Breakpoint
 import com.android.mechanics.spec.BreakpointKey
 import com.android.mechanics.spec.DirectionalMotionSpec
 import com.android.mechanics.spec.Mapping
+import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.testing.BreakpointSubject.Companion.BreakpointKeys
 import com.android.mechanics.testing.BreakpointSubject.Companion.BreakpointPositions
 import com.google.common.truth.Correspondence
+import com.google.common.truth.Correspondence.transforming
 import com.google.common.truth.FailureMetadata
 import com.google.common.truth.FloatSubject
 import com.google.common.truth.IterableSubject
 import com.google.common.truth.Subject
 import com.google.common.truth.Subject.Factory
 import com.google.common.truth.Truth
+
+/** Subject to verify the definition of a [MotionSpec]. */
+class MotionSpecSubject
+internal constructor(failureMetadata: FailureMetadata, private val actual: MotionSpec?) :
+    Subject(failureMetadata, actual) {
+
+    fun minDirection(): DirectionalMotionSpecSubject {
+        isNotNull()
+
+        return check("min")
+            .about(DirectionalMotionSpecSubject.SubjectFactory)
+            .that(actual?.minDirection)
+    }
+
+    fun maxDirection(): DirectionalMotionSpecSubject {
+        isNotNull()
+
+        return check("max")
+            .about(DirectionalMotionSpecSubject.SubjectFactory)
+            .that(actual?.maxDirection)
+    }
+
+    fun bothDirections(): DirectionalMotionSpecSubject {
+        isNotNull()
+        check("both directions same").that(actual?.minDirection).isEqualTo(actual?.maxDirection)
+        return check("both")
+            .about(DirectionalMotionSpecSubject.SubjectFactory)
+            .that(actual?.maxDirection)
+    }
+
+    companion object {
+
+        /** Returns a factory to be used with [Truth.assertAbout]. */
+        val SubjectFactory = Factory { failureMetadata: FailureMetadata, subject: MotionSpec? ->
+            MotionSpecSubject(failureMetadata, subject)
+        }
+
+        /** Shortcut for `Truth.assertAbout(motionSpec()).that(spec)`. */
+        fun assertThat(spec: MotionSpec): MotionSpecSubject =
+            Truth.assertAbout(SubjectFactory).that(spec)
+    }
+}
 
 /** Subject to verify the definition of a [DirectionalMotionSpec]. */
 class DirectionalMotionSpecSubject
@@ -43,11 +87,47 @@ internal constructor(failureMetadata: FailureMetadata, private val actual: Direc
         return check("breakpoints").about(BreakpointsSubject.SubjectFactory).that(actual)
     }
 
+    fun breakpointsPositionsMatch(vararg positions: Float) {
+        isNotNull()
+
+        return check("breakpoints")
+            .about(BreakpointsSubject.SubjectFactory)
+            .that(actual)
+            .positions()
+            .containsExactlyElementsIn(positions.toTypedArray())
+            .inOrder()
+    }
+
     /** Assert on the mappings. */
     fun mappings(): MappingsSubject {
         isNotNull()
 
         return check("mappings").about(MappingsSubject.SubjectFactory).that(actual)
+    }
+
+    /** Assert that the mappings contain exactly the specified mappings, in order . */
+    fun mappingsMatch(vararg mappings: Mapping) {
+        isNotNull()
+
+        check("mappings")
+            .about(MappingsSubject.SubjectFactory)
+            .that(actual)
+            .containsExactlyElementsIn(mappings)
+            .inOrder()
+    }
+
+    /** Assert that the mappings contain exactly the specified [Fixed] mappings, in order . */
+    fun fixedMappingsMatch(vararg fixedMappingValues: Float) {
+        isNotNull()
+
+        check("fixed mappings")
+            .about(MappingsSubject.SubjectFactory)
+            .that(actual)
+            .comparingElementsUsing(
+                transforming<Mapping, Float?>({ (it as? Mapping.Fixed)?.value }, "Fixed.value")
+            )
+            .containsExactlyElementsIn(fixedMappingValues.toTypedArray())
+            .inOrder()
     }
 
     /** Assert on the semantics. */
@@ -60,15 +140,14 @@ internal constructor(failureMetadata: FailureMetadata, private val actual: Direc
     companion object {
 
         /** Returns a factory to be used with [Truth.assertAbout]. */
-        fun directionalMotionSpec(): Factory<DirectionalMotionSpecSubject, DirectionalMotionSpec> {
-            return Factory { failureMetadata: FailureMetadata, subject: DirectionalMotionSpec? ->
+        val SubjectFactory =
+            Factory { failureMetadata: FailureMetadata, subject: DirectionalMotionSpec? ->
                 DirectionalMotionSpecSubject(failureMetadata, subject)
             }
-        }
 
         /** Shortcut for `Truth.assertAbout(directionalMotionSpec()).that(spec)`. */
         fun assertThat(spec: DirectionalMotionSpec): DirectionalMotionSpecSubject =
-            Truth.assertAbout(directionalMotionSpec()).that(spec)
+            Truth.assertAbout(SubjectFactory).that(spec)
     }
 }
 
@@ -135,9 +214,9 @@ internal constructor(failureMetadata: FailureMetadata, private val actual: Break
 
     companion object {
         val BreakpointKeys =
-            Correspondence.transforming<Breakpoint, BreakpointKey>({ it.key }, "key")
+            Correspondence.transforming<Breakpoint, BreakpointKey?>({ it?.key }, "key")
         val BreakpointPositions =
-            Correspondence.transforming<Breakpoint, Float>({ it.position }, "position")
+            Correspondence.transforming<Breakpoint, Float?>({ it?.position }, "position")
 
         /** Returns a factory to be used with [Truth.assertAbout]. */
         val SubjectFactory =

@@ -30,8 +30,10 @@ import com.android.mechanics.spring.SpringParameters
  *
  * Clients must use [buildDirectionalMotionSpec] instead.
  */
-internal class DirectionalBuilderImpl(override val defaultSpring: SpringParameters) :
-    DirectionalBuilderScope {
+internal class DirectionalBuilderImpl(
+    override val defaultSpring: SpringParameters,
+    baseSemantics: List<SemanticValue<*>>,
+) : DirectionalBuilderScope {
     internal val breakpoints = mutableListOf(Breakpoint.minLimit)
     internal val semantics = mutableListOf<SegmentSemanticValuesBuilder<*>>()
     internal val mappings = mutableListOf<Mapping>()
@@ -41,9 +43,79 @@ internal class DirectionalBuilderImpl(override val defaultSpring: SpringParamete
     private var breakpointPosition: Float = Float.NaN
     private var breakpointKey: BreakpointKey? = null
 
+    init {
+        baseSemantics.forEach { semantics.add(SegmentSemanticValuesBuilder(it)) }
+    }
+
+    /** Prepares the builder for invoking the [DirectionalBuilderFn] on it. */
+    fun prepareBuilderFn(
+        initialMapping: Mapping = Mapping.Identity,
+        initialSemantics: List<SemanticValue<*>> = emptyList(),
+    ) {
+        check(mappings.size == breakpoints.size - 1)
+
+        mappings.add(initialMapping)
+        initialSemantics.forEach { semantic ->
+            val existingBuilder = semantics.firstOrNull { it.key == semantic.key }
+            if (existingBuilder != null) {
+                existingBuilder.backfill(mappings.size)
+                existingBuilder.append(semantic.value)
+            } else {
+                SegmentSemanticValuesBuilder(semantic).also { semantics.add(it) }
+            }
+        }
+    }
+
+    /**
+     * Finalizes open segments, after invoking a [DirectionalBuilderFn].
+     *
+     * Afterwards, either [build] or another pair of {[prepareBuilderFn], [finalizeBuilderFn]} calls
+     * can be done.
+     */
+    fun finalizeBuilderFn(
+        atPosition: Float,
+        key: BreakpointKey,
+        springSpec: SpringParameters,
+        guarantee: Guarantee,
+        semantics: List<SemanticValue<*>>,
+    ) {
+        if (!(targetValue.isNaN() && fractionalMapping.isNaN())) {
+            // Finalizing will produce the mapping and breakpoint
+            check(mappings.size == breakpoints.size - 1)
+        } else {
+            // Mapping is already added, this will add the breakpoint
+            check(mappings.size == breakpoints.size)
+        }
+
+        if (key == Breakpoint.maxLimit.key) {
+            check(targetValue.isNaN()) { "cant specify target value for last segment" }
+            check(semantics.isEmpty()) { "cant specify semantics for last breakpoint" }
+        } else {
+            check(atPosition.isFinite())
+            check(atPosition > breakpoints.last().position) {
+                "Breakpoints were placed outside of partial sequence"
+            }
+            applySemantics(semantics)
+        }
+
+        toBreakpointImpl(atPosition, key)
+        doAddBreakpointImpl(springSpec, guarantee)
+    }
+
+    fun finalizeBuilderFn(breakpoint: Breakpoint) =
+        finalizeBuilderFn(
+            breakpoint.position,
+            breakpoint.key,
+            breakpoint.spring,
+            breakpoint.guarantee,
+            emptyList(),
+        )
+
     /* Creates the [DirectionalMotionSpec] from the current builder state. */
     fun build(): DirectionalMotionSpec {
-        completeImpl()
+        require(mappings.size == breakpoints.size - 1)
+        check(breakpoints.last() == Breakpoint.maxLimit)
+
         val semantics =
             semantics.map { builder ->
                 with(builder) {
@@ -217,6 +289,10 @@ internal class DirectionalBuilderImpl(override val defaultSpring: SpringParamete
         check(breakpointPosition.isNaN())
         check(breakpointKey == null)
 
+        check(atPosition >= breakpoints.last().position) {
+            "Breakpoint position specified is before last breakpoint"
+        }
+
         if (!targetValue.isNaN() || !fractionalMapping.isNaN()) {
             check(!sourceValue.isNaN())
 
@@ -249,7 +325,31 @@ internal class DirectionalBuilderImpl(override val defaultSpring: SpringParamete
         breakpointKey = key
     }
 
+    private fun doAddBreakpointImpl(
+        springSpec: SpringParameters,
+        guarantee: Guarantee,
+    ): Breakpoint {
+        val breakpoint =
+            if (breakpointKey == Breakpoint.maxLimit.key) {
+                check(breakpointPosition == Float.POSITIVE_INFINITY)
+                Breakpoint.maxLimit
+            } else {
+                check(breakpointPosition.isFinite())
+                Breakpoint(checkNotNull(breakpointKey), breakpointPosition, springSpec, guarantee)
+            }
+
+        breakpoints.add(breakpoint)
+        breakpointPosition = Float.NaN
+        breakpointKey = null
+
+        return breakpoint
+    }
+
     private fun completeImpl() {
+        if (breakpoints.last() == Breakpoint.maxLimit) {
+            return
+        }
+
         check(targetValue.isNaN()) { "cant specify target value for last segment" }
 
         if (!fractionalMapping.isNaN()) {
@@ -266,19 +366,6 @@ internal class DirectionalBuilderImpl(override val defaultSpring: SpringParamete
         }
 
         breakpoints.add(Breakpoint.maxLimit)
-    }
-
-    private fun doAddBreakpointImpl(
-        springSpec: SpringParameters,
-        guarantee: Guarantee,
-    ): Breakpoint {
-        check(breakpointPosition.isFinite())
-        return Breakpoint(checkNotNull(breakpointKey), breakpointPosition, springSpec, guarantee)
-            .also {
-                breakpoints.add(it)
-                breakpointPosition = Float.NaN
-                breakpointKey = null
-            }
     }
 }
 

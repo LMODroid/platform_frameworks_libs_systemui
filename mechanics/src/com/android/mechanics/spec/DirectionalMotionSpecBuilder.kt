@@ -18,7 +18,6 @@ package com.android.mechanics.spec
 
 import com.android.mechanics.spec.builder.DirectionalBuilderFn
 import com.android.mechanics.spec.builder.DirectionalBuilderImpl
-import com.android.mechanics.spec.builder.SegmentSemanticValuesBuilder
 import com.android.mechanics.spring.SpringParameters
 
 /**
@@ -63,10 +62,12 @@ fun buildDirectionalMotionSpec(
     semantics: List<SemanticValue<*>> = emptyList(),
     init: DirectionalBuilderFn,
 ): DirectionalMotionSpec {
-    return DirectionalBuilderImpl(defaultSpring)
-        .also { it.mappings += initialMapping }
-        .also { it.semantics += semantics.map { SegmentSemanticValuesBuilder(it) } }
-        .also { it.init() }
+    return DirectionalBuilderImpl(defaultSpring, semantics)
+        .apply {
+            prepareBuilderFn(initialMapping)
+            init()
+            finalizeBuilderFn(Breakpoint.maxLimit)
+        }
         .build()
 }
 
