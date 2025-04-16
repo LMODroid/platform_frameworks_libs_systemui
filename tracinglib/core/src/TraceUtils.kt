@@ -111,13 +111,14 @@ public inline fun <T> traceSection(tag: String, block: () -> T): T {
  * strings when not needed.
  */
 @OptIn(ExperimentalContracts::class)
-public inline fun <T> traceSection(tag: () -> String, block: () -> T): T {
+public inline fun <T> traceSection(tag: () -> String?, block: () -> T): T {
     contract {
         callsInPlace(tag, InvocationKind.AT_MOST_ONCE)
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
     }
-    val tracingEnabled = Trace.isEnabled()
-    if (tracingEnabled) beginSlice(tag())
+    val sliceName = if (Trace.isEnabled()) tag() else null
+    val tracingEnabled = sliceName != null
+    if (tracingEnabled) beginSlice(sliceName!!)
     return try {
         block()
     } finally {
