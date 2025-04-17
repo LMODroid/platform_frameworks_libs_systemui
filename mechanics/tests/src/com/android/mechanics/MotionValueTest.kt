@@ -38,12 +38,12 @@ import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spec.SemanticValue
 import com.android.mechanics.spec.buildDirectionalMotionSpec
 import com.android.mechanics.spec.builder
-import com.android.mechanics.spec.builder.DirectionalBuilderFn
+import com.android.mechanics.spec.builder.CanBeLastSegment
+import com.android.mechanics.spec.builder.DirectionalBuilderScope
 import com.android.mechanics.spec.reverseBuilder
 import com.android.mechanics.spec.with
 import com.android.mechanics.testing.CapturedSemantics
-import com.android.mechanics.testing.DefaultSprings.matStandardDefault
-import com.android.mechanics.testing.DefaultSprings.matStandardFast
+import com.android.mechanics.testing.FakeMotionSpecBuilderContext
 import com.android.mechanics.testing.MotionValueToolkit
 import com.android.mechanics.testing.VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
 import com.android.mechanics.testing.VerifyTimeSeriesResult.SkipGoldenVerification
@@ -762,33 +762,35 @@ class MotionValueTest {
                     get() = 0f
             }
 
+        private val Springs = FakeMotionSpecBuilderContext.Default.spatial
+
         fun specBuilder(
             initialMapping: Mapping = Mapping.Identity,
             semantics: List<SemanticValue<*>> = emptyList(),
-            init: DirectionalBuilderFn,
+            init: DirectionalBuilderScope.() -> CanBeLastSegment,
         ): MotionSpec {
             return MotionSpec(
-                buildDirectionalMotionSpec(matStandardDefault, initialMapping, semantics, init),
-                resetSpring = matStandardFast,
+                buildDirectionalMotionSpec(Springs.default, initialMapping, semantics, init),
+                resetSpring = Springs.fast,
             )
         }
 
         fun specBuilder(firstSegment: Mapping = Mapping.Identity) =
             MotionSpec.builder(
-                defaultSpring = matStandardDefault,
-                resetSpring = matStandardFast,
+                defaultSpring = Springs.default,
+                resetSpring = Springs.fast,
                 initialMapping = firstSegment,
             )
 
         fun forwardSpecBuilder(firstSegment: Mapping = Mapping.Identity) =
             DirectionalMotionSpec.builder(
-                defaultSpring = matStandardDefault,
+                defaultSpring = Springs.default,
                 initialMapping = firstSegment,
             )
 
         fun reverseSpecBuilder(firstSegment: Mapping = Mapping.Identity) =
             DirectionalMotionSpec.reverseBuilder(
-                defaultSpring = matStandardDefault,
+                defaultSpring = Springs.default,
                 initialMapping = firstSegment,
             )
     }

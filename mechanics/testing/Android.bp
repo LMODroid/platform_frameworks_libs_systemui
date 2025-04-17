@@ -33,4 +33,5 @@ android_library {
         "testables",
         "truth",
     ],
+    kotlincflags: ["-Xjvm-default=all"],
 }

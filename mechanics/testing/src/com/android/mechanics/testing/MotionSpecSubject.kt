@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.testing.BreakpointSubject.Companion.BreakpointKeys
 import com.android.mechanics.testing.BreakpointSubject.Companion.BreakpointPositions
-import com.google.common.truth.Correspondence
 import com.google.common.truth.Correspondence.transforming
 import com.google.common.truth.FailureMetadata
 import com.google.common.truth.FloatSubject
@@ -213,10 +212,8 @@ internal constructor(failureMetadata: FailureMetadata, private val actual: Break
     fun hasKey(key: BreakpointKey) = key().isEqualTo(key)
 
     companion object {
-        val BreakpointKeys =
-            Correspondence.transforming<Breakpoint, BreakpointKey?>({ it?.key }, "key")
-        val BreakpointPositions =
-            Correspondence.transforming<Breakpoint, Float?>({ it?.position }, "position")
+        val BreakpointKeys = transforming<Breakpoint, BreakpointKey?>({ it?.key }, "key")
+        val BreakpointPositions = transforming<Breakpoint, Float?>({ it?.position }, "position")
 
         /** Returns a factory to be used with [Truth.assertAbout]. */
         val SubjectFactory =
