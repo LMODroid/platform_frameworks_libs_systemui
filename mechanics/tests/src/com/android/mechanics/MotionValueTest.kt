@@ -43,10 +43,12 @@ import com.android.mechanics.spec.builder.DirectionalBuilderScope
 import com.android.mechanics.spec.reverseBuilder
 import com.android.mechanics.spec.with
 import com.android.mechanics.testing.CapturedSemantics
+import com.android.mechanics.testing.ComposeMotionValueToolkit
 import com.android.mechanics.testing.FakeMotionSpecBuilderContext
-import com.android.mechanics.testing.MotionValueToolkit
 import com.android.mechanics.testing.VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
 import com.android.mechanics.testing.VerifyTimeSeriesResult.SkipGoldenVerification
+import com.android.mechanics.testing.animateValueTo
+import com.android.mechanics.testing.animatedInputSequence
 import com.android.mechanics.testing.dataPoints
 import com.android.mechanics.testing.goldenTest
 import com.android.mechanics.testing.input
@@ -72,7 +74,8 @@ class MotionValueTest {
         createGoldenPathManager("frameworks/libs/systemui/mechanics/tests/goldens")
 
     @get:Rule(order = 0) val rule = createComposeRule()
-    @get:Rule(order = 1) val motion = MotionTestRule(MotionValueToolkit(rule), goldenPathManager)
+    @get:Rule(order = 1)
+    val motion = MotionTestRule(ComposeMotionValueToolkit(rule), goldenPathManager)
     @get:Rule(order = 2) val wtfLog = WtfLogRule()
 
     @Test
@@ -104,7 +107,7 @@ class MotionValueTest {
         ) {
             animateValueTo(1.1f, changePerFrame = 0.5f)
             while (underTest.isStable) {
-                updateValue(input + 0.5f)
+                updateInput(input + 0.5f)
                 awaitFrames()
             }
         }
@@ -222,7 +225,7 @@ class MotionValueTest {
                     .completeWith(Mapping.Fixed(10f)),
             stableThreshold = 1f,
         ) {
-            this.updateValue(1.5f)
+            this.updateInput(1.5f)
             awaitStable()
             animateValueTo(3f)
             awaitStable()
@@ -333,7 +336,7 @@ class MotionValueTest {
                     .toBreakpoint(2f)
                     .completeWith(Mapping.Two)
         ) {
-            updateValue(2.5f)
+            updateInput(2.5f)
             awaitStable()
         }
 
@@ -350,7 +353,7 @@ class MotionValueTest {
                     .continueWithConstantValue()
                     .complete()
         ) {
-            updateValue(2.1f)
+            updateInput(2.1f)
             awaitStable()
         }
 
@@ -367,7 +370,7 @@ class MotionValueTest {
             initialDirection = InputDirection.Max,
             directionChangeSlop = 1f,
         ) {
-            updateValue(.5f)
+            updateInput(.5f)
             animateValueTo(0f)
             awaitStable()
         }
@@ -494,7 +497,7 @@ class MotionValueTest {
     @Test
     fun nonFiniteNumbers_producesNaN_recoversOnSubsequentFrames() {
         motion.goldenTest(
-            spec = specBuilder(Mapping { if (it >= 1f) Float.NaN else 0f }).complete(),
+            spec = specBuilder({ if (it >= 1f) Float.NaN else 0f }).complete(),
             verifyTimeSeries = {
                 assertThat(output.drop(1).take(5))
                     .containsExactlyElementsIn(listOf(0f, Float.NaN, Float.NaN, 0f, 0f))
@@ -524,9 +527,7 @@ class MotionValueTest {
         ) {
             animatedInputSequence(0f, 1f)
             underTest.spec =
-                specBuilder()
-                    .toBreakpoint(0f)
-                    .completeWith(Mapping { if (it >= 1f) Float.NaN else 0f })
+                specBuilder().toBreakpoint(0f).completeWith({ if (it >= 1f) Float.NaN else 0f })
             awaitFrames()
 
             animatedInputSequence(0f, 0f)
@@ -542,7 +543,7 @@ class MotionValueTest {
             spec =
                 specBuilder(Mapping.Zero)
                     .toBreakpoint(1f)
-                    .completeWith(Mapping { if (it < 2f) Float.NaN else 2f }),
+                    .completeWith({ if (it < 2f) Float.NaN else 2f }),
             verifyTimeSeries = {
                 // The mappings produce a non-finite number during a breakpoint traversal.
                 // The animation thereof is skipped to avoid poisoning the state with non-finite

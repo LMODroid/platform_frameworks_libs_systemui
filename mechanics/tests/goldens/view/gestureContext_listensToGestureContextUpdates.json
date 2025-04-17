@@ -7,15 +7,13 @@
     64,
     80,
     96,
-    112,
-    128
+    112
   ],
   "features": [
     {
       "name": "input",
       "type": "float",
       "data_points": [
-        0,
         0,
         0.5,
         1,
@@ -37,7 +35,6 @@
         "Max",
         "Max",
         "Max",
-        "Max",
         "Max"
       ]
     },
@@ -45,7 +42,6 @@
       "name": "output",
       "type": "float",
       "data_points": [
-        0,
         0,
         0,
         0,
@@ -62,7 +58,6 @@
       "data_points": [
         0,
         0,
-        0,
         1,
         1,
         1,
@@ -75,10 +70,6 @@
       "name": "outputSpring",
       "type": "springParameters",
       "data_points": [
-        {
-          "stiffness": 100000,
-          "dampingRatio": 1
-        },
         {
           "stiffness": 100000,
           "dampingRatio": 1
@@ -117,7 +108,6 @@
       "name": "isStable",
       "type": "boolean",
       "data_points": [
-        true,
         true,
         true,
         false,

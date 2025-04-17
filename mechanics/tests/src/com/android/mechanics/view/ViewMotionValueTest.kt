@@ -16,13 +16,7 @@
 
 package com.android.mechanics.view
 
-import android.animation.AnimatorRuleRecordingSpec
-import android.animation.AnimatorTestRuleToolkit
-import android.animation.MotionControl
-import android.animation.MotionControlScope
-import android.animation.recordMotion
 import android.platform.test.annotations.MotionTest
-import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.mechanics.MotionValueTest.Companion.B1
 import com.android.mechanics.MotionValueTest.Companion.B2
@@ -35,26 +29,21 @@ import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SegmentKey
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spec.with
-import com.android.mechanics.testing.EmptyTestActivity
-import com.android.mechanics.testing.VerifyTimeSeriesResult
 import com.android.mechanics.testing.VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
-import com.android.mechanics.testing.asDataPoint
+import com.android.mechanics.testing.ViewMotionValueToolkit
+import com.android.mechanics.testing.animateValueTo
+import com.android.mechanics.testing.goldenTest
 import com.android.mechanics.testing.input
 import com.android.mechanics.testing.isStable
 import com.android.mechanics.testing.output
 import com.google.common.truth.Truth.assertThat
-import kotlin.math.abs
-import kotlin.math.floor
-import kotlin.math.sign
-import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import platform.test.motion.MotionTestRule
-import platform.test.motion.golden.FeatureCapture
-import platform.test.motion.golden.TimeSeries
-import platform.test.motion.golden.asDataPoint
 import platform.test.motion.testing.createGoldenPathManager
 import platform.test.screenshot.PathConfig
 import platform.test.screenshot.PathElementNoContext
@@ -77,21 +66,16 @@ class ViewMotionValueTest {
             PathConfig(PathElementNoContext("base", isDir = true, { "view" })),
         )
 
-    private val testScope = TestScope()
-
-    @get:Rule(order = 1) val activityRule = ActivityScenarioRule(EmptyTestActivity::class.java)
+    //    @get:Rule(order = 1) val activityRule =
+    // ActivityScenarioRule(EmptyTestActivity::class.java)
     @get:Rule(order = 2) val animatorTestRule = android.animation.AnimatorTestRule(this)
 
     @get:Rule(order = 3)
-    val motionRule =
-        MotionTestRule(
-            AnimatorTestRuleToolkit(animatorTestRule, testScope) { activityRule.scenario },
-            goldenPathManager,
-        )
+    val motion = MotionTestRule(ViewMotionValueToolkit(animatorTestRule), goldenPathManager)
 
     @Test
     fun emptySpec_outputMatchesInput_withoutAnimation() =
-        goldenTest(
+        motion.goldenTest(
             spec = MotionSpec.Empty,
             verifyTimeSeries = {
                 // Output always matches the input
@@ -107,14 +91,16 @@ class ViewMotionValueTest {
 
     @Test
     fun segmentChange_animatedWhenReachingBreakpoint() =
-        goldenTest(spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One)) {
+        motion.goldenTest(
+            spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One)
+        ) {
             animateValueTo(1f, changePerFrame = 0.5f)
             awaitStable()
         }
 
     @Test
-    fun semantics_returnsValueMatchingSegment() {
-        activityRule.scenario.onActivity {
+    fun semantics_returnsValueMatchingSegment() = runTest {
+        runBlocking(Dispatchers.Main) {
             val s1 = SemanticKey<String>("Foo")
             val spec =
                 specBuilder(Mapping.Zero, semantics = listOf(s1 with "zero")) {
@@ -133,8 +119,8 @@ class ViewMotionValueTest {
     }
 
     @Test
-    fun segment_returnsCurrentSegmentKey() {
-        activityRule.scenario.onActivity {
+    fun segment_returnsCurrentSegmentKey() = runTest {
+        runBlocking(Dispatchers.Main) {
             val spec =
                 specBuilder(Mapping.Zero) {
                     constantValue(1f, 1f, key = B1)
@@ -154,7 +140,7 @@ class ViewMotionValueTest {
 
     @Test
     fun gestureContext_listensToGestureContextUpdates() =
-        goldenTest(
+        motion.goldenTest(
             spec =
                 specBuilder(Mapping.Zero)
                     .toBreakpoint(1f)
@@ -177,7 +163,7 @@ class ViewMotionValueTest {
                 .toBreakpoint(offset + 1f, B2)
                 .completeWith(Mapping.Zero)
 
-        goldenTest(spec = generateSpec(0f), initialValue = .5f) {
+        motion.goldenTest(spec = generateSpec(0f), initialValue = .5f) {
             underTest.spec = generateSpec(1f)
             awaitFrames()
             awaitStable()
@@ -185,8 +171,8 @@ class ViewMotionValueTest {
     }
 
     @Test
-    fun update_triggersCallback() {
-        activityRule.scenario.onActivity {
+    fun update_triggersCallback() = runTest {
+        runBlocking(Dispatchers.Main) {
             val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 5f)
             val underTest = ViewMotionValue(0f, gestureContext, MotionSpec.Empty)
 
@@ -200,8 +186,8 @@ class ViewMotionValueTest {
     }
 
     @Test
-    fun update_setSameValue_doesNotTriggerCallback() {
-        activityRule.scenario.onActivity {
+    fun update_setSameValue_doesNotTriggerCallback() = runTest {
+        runBlocking(Dispatchers.Main) {
             val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 5f)
             val underTest = ViewMotionValue(0f, gestureContext, MotionSpec.Empty)
 
@@ -215,8 +201,8 @@ class ViewMotionValueTest {
     }
 
     @Test
-    fun update_triggersCallbacksWhileAnimating() {
-        activityRule.scenario.onActivity {
+    fun update_triggersCallbacksWhileAnimating() = runTest {
+        runBlocking(Dispatchers.Main) {
             val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 5f)
             val spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One)
             val underTest = ViewMotionValue(0f, gestureContext, spec)
@@ -231,8 +217,8 @@ class ViewMotionValueTest {
     }
 
     @Test
-    fun removeCallback_doesNotTriggerAfterRemoving() {
-        activityRule.scenario.onActivity {
+    fun removeCallback_doesNotTriggerAfterRemoving() = runTest {
+        runBlocking(Dispatchers.Main) {
             val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 5f)
             val spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One)
             val underTest = ViewMotionValue(0f, gestureContext, spec)
@@ -253,8 +239,8 @@ class ViewMotionValueTest {
     }
 
     @Test
-    fun debugInspector_sameInstance_whileInUse() {
-        activityRule.scenario.onActivity {
+    fun debugInspector_sameInstance_whileInUse() = runTest {
+        runBlocking(Dispatchers.Main) {
             val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 5f)
             val underTest = ViewMotionValue(0f, gestureContext, MotionSpec.Empty)
 
@@ -264,128 +250,14 @@ class ViewMotionValueTest {
     }
 
     @Test
-    fun debugInspector_newInstance_afterUnused() {
-        activityRule.scenario.onActivity {
+    fun debugInspector_newInstance_afterUnused() = runTest {
+        runBlocking(Dispatchers.Main) {
             val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 5f)
             val underTest = ViewMotionValue(0f, gestureContext, MotionSpec.Empty)
 
             val originalInspector = underTest.debugInspector()
             originalInspector.dispose()
             assertThat(underTest.debugInspector()).isNotSameInstanceAs(originalInspector)
-        }
-    }
-
-    // goldenTest and InputScope mimics what is done in MotionValueToolkit. Inlining here, as
-    // it's not intended to be used more widely than a couple basic tests here.
-    private fun goldenTest(
-        spec: MotionSpec,
-        initialValue: Float = 0f,
-        initialDirection: InputDirection = InputDirection.Max,
-        directionChangeSlop: Float = 5f,
-        stableThreshold: Float = 0.01f,
-        verifyTimeSeries: TimeSeries.() -> VerifyTimeSeriesResult = {
-            VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
-        },
-        testInput: suspend InputScope.() -> Unit,
-    ) = runTest {
-        lateinit var motionValue: ViewMotionValue
-        val gestureContext =
-            DistanceGestureContext(initialValue, initialDirection, directionChangeSlop)
-
-        activityRule.scenario.onActivity {
-            motionValue =
-                ViewMotionValue(
-                    initialValue,
-                    gestureContext,
-                    spec,
-                    stableThreshold = stableThreshold,
-                )
-        }
-
-        val motionControl = MotionControl {
-            testInput.invoke(InputScope(this, motionValue, gestureContext))
-            // AnimatorTestRule always records the frame first, then calls nextFrame() internally.
-            // Since the ViewMotionValue is updated during the nextFrame() only, always record one
-            // extra frame to capture the last computed state.
-            awaitFrames()
-        }
-
-        val inspector = motionValue.debugInspector()
-
-        val recordedMotion =
-            motionRule.recordMotion(
-                AnimatorRuleRecordingSpec(inspector, motionControl) {
-                    on({ it.frame }) {
-                        feature(FeatureCapture("input") { it.input.asDataPoint() })
-                        feature(
-                            FeatureCapture("gestureDirection") {
-                                it.gestureDirection.name.asDataPoint()
-                            }
-                        )
-                        feature(FeatureCapture("output") { it.output.asDataPoint() })
-                        feature(FeatureCapture("outputTarget") { it.outputTarget.asDataPoint() })
-                        feature(
-                            FeatureCapture("outputSpring") { it.springParameters.asDataPoint() }
-                        )
-                        feature(FeatureCapture("isStable") { it.isStable.asDataPoint() })
-                    }
-                }
-            )
-
-        val skipGoldenVerification = verifyTimeSeries.invoke(recordedMotion.timeSeries)
-        if (skipGoldenVerification == VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden) {
-            motionRule.assertThat(recordedMotion).timeSeriesMatchesGolden()
-        }
-        activityRule.scenario.onActivity { motionValue.dispose() }
-    }
-
-    private class InputScope(
-        motionControlScope: MotionControlScope,
-        val underTest: ViewMotionValue,
-        val gestureContext: DistanceGestureContext,
-    ) : MotionControlScope by motionControlScope {
-        val input: Float
-            get() = underTest.input
-
-        suspend fun awaitStable() {
-            awaitCondition { underTest.isStable }
-        }
-
-        fun updateValue(position: Float) {
-            gestureContext.dragOffset = position
-            underTest.input = position
-        }
-
-        suspend fun animateValueTo(
-            targetValue: Float,
-            changePerFrame: Float = abs(input - targetValue) / 5f,
-        ) {
-            require(changePerFrame > 0f)
-            var currentValue = input
-            val delta = targetValue - currentValue
-            val step = changePerFrame * delta.sign
-
-            val stepCount = floor((abs(delta) / changePerFrame) - 1).toInt()
-            repeat(stepCount) {
-                currentValue += step
-                updateValue(currentValue)
-                awaitFrames()
-            }
-
-            updateValue(targetValue)
-            awaitFrames()
-        }
-
-        suspend fun animatedInputSequence(vararg values: Float) {
-            values.forEach {
-                updateValue(it)
-                awaitFrames()
-            }
-        }
-
-        fun reset(position: Float, direction: InputDirection) {
-            underTest.input = position
-            gestureContext.reset(position, direction)
         }
     }
 }
