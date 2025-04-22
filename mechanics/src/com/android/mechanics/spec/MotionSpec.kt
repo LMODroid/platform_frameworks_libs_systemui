@@ -20,25 +20,6 @@ import androidx.compose.ui.util.fastFirstOrNull
 import com.android.mechanics.spring.SpringParameters
 
 /**
- * Handler to allow for custom segment-change logic.
- *
- * This handler is called whenever the new input (position or direction) does not match
- * [currentSegment] anymore (see [SegmentData.isValidForInput]).
- *
- * This is intended to implement custom effects on direction-change.
- *
- * Implementations can return:
- * 1. [currentSegment] to delay/suppress segment change.
- * 2. `null` to use the default segment lookup based on [newPosition] and [newDirection]
- * 3. manually looking up segments on this [MotionSpec]
- * 4. create a [SegmentData] that is not in the spec.
- */
-typealias OnChangeSegmentHandler =
-    MotionSpec.(
-        currentSegment: SegmentData, newPosition: Float, newDirection: InputDirection,
-    ) -> SegmentData?
-
-/**
  * Specification for the mapping of input values to output values.
  *
  * The spec consists of two independent directional spec's, while only one the one matching

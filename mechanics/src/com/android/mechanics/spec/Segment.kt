@@ -138,5 +138,16 @@ fun interface Mapping {
         val Zero = Fixed(0f)
         val One = Fixed(1f)
         val Two = Fixed(2f)
+
+        /** Create a linear mapping defined as a line between {in0,out0} and {in1,out1}. */
+        fun Linear(in0: Float, out0: Float, in1: Float, out1: Float): Linear {
+            require(in0 != in1) {
+                "Cannot define a linear function with both inputs being the same ($in0)."
+            }
+
+            val factor = (out1 - out0) / (in1 - in0)
+            val offset = out0 - factor * in0
+            return Linear(factor, offset)
+        }
     }
 }
