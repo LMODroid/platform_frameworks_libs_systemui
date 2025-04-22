@@ -39,7 +39,8 @@ class BreakpointKey(val debugLabel: String? = null, val identity: Any = Object()
     }
 
     override fun toString(): String {
-        return if (debugLabel != null) "BreakpointKey(label=$debugLabel)" else "BreakpointKey()"
+        return "BreakpointKey(${debugLabel ?: ""}" +
+            "@${System.identityHashCode(identity).toString(16).padStart(8,'0')})"
     }
 }
 

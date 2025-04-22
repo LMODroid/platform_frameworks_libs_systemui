@@ -28,7 +28,11 @@ data class SegmentKey(
     val minBreakpoint: BreakpointKey,
     val maxBreakpoint: BreakpointKey,
     val direction: InputDirection,
-)
+) {
+    override fun toString(): String {
+        return "SegmentKey(min=$minBreakpoint, max=$maxBreakpoint, direction=$direction)"
+    }
+}
 
 /**
  * Captures denormalized segment data from a [MotionSpec].
@@ -80,6 +84,13 @@ data class SegmentData(
     fun <T> semantic(semanticKey: SemanticKey<T>): T? {
         return spec.semanticState(semanticKey, key)
     }
+
+    val range: ClosedFloatingPointRange<Float>
+        get() = minBreakpoint.position..maxBreakpoint.position
+
+    override fun toString(): String {
+        return "SegmentData(key=$key, range=$range, mapping=$mapping)"
+    }
 }
 
 /**
@@ -95,6 +106,10 @@ fun interface Mapping {
     object Identity : Mapping {
         override fun map(input: Float): Float {
             return input
+        }
+
+        override fun toString(): String {
+            return "Identity"
         }
     }
 
