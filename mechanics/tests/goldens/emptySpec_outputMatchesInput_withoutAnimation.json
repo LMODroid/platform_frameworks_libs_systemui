@@ -5,8 +5,7 @@
     32,
     48,
     64,
-    80,
-    96
+    80
   ],
   "features": [
     {
@@ -18,7 +17,6 @@
         40,
         60,
         80,
-        100,
         100
       ]
     },
@@ -26,7 +24,6 @@
       "name": "gestureDirection",
       "type": "string",
       "data_points": [
-        "Max",
         "Max",
         "Max",
         "Max",
@@ -44,7 +41,6 @@
         40,
         60,
         80,
-        100,
         100
       ]
     },
@@ -57,7 +53,6 @@
         40,
         60,
         80,
-        100,
         100
       ]
     },
@@ -88,10 +83,6 @@
         {
           "stiffness": 100000,
           "dampingRatio": 1
-        },
-        {
-          "stiffness": 100000,
-          "dampingRatio": 1
         }
       ]
     },
@@ -99,7 +90,6 @@
       "name": "isStable",
       "type": "boolean",
       "data_points": [
-        true,
         true,
         true,
         true,

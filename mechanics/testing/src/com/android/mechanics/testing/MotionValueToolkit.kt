@@ -23,6 +23,7 @@ import com.android.mechanics.spec.SemanticKey
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.sign
+import kotlin.time.Duration.Companion.milliseconds
 import platform.test.motion.MotionTestRule
 import platform.test.motion.RecordedMotion.Companion.create
 import platform.test.motion.golden.DataPoint
@@ -216,5 +217,9 @@ sealed class MotionValueToolkit<MotionValueType, GestureContextType> {
         if (skipGoldenVerification == VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden) {
             motionTestRule.assertThat(recordedMotion).timeSeriesMatchesGolden()
         }
+    }
+
+    companion object {
+        val FrameDuration = 16.milliseconds
     }
 }

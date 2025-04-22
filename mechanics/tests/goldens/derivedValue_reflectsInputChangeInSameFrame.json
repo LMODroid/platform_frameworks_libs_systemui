@@ -19,8 +19,7 @@
     256,
     272,
     288,
-    304,
-    320
+    304
   ],
   "features": [
     {
@@ -46,7 +45,6 @@
         1,
         1,
         1,
-        1,
         1
       ]
     },
@@ -54,7 +52,6 @@
       "name": "gestureDirection",
       "type": "string",
       "data_points": [
-        "Max",
         "Max",
         "Max",
         "Max",
@@ -100,7 +97,6 @@
         0.9786911,
         0.98912483,
         0.9953385,
-        1,
         1
       ]
     },
@@ -113,7 +109,6 @@
         0,
         0,
         0,
-        1,
         1,
         1,
         1,
@@ -214,10 +209,6 @@
         {
           "stiffness": 700,
           "dampingRatio": 0.9
-        },
-        {
-          "stiffness": 700,
-          "dampingRatio": 0.9
         }
       ]
     },
@@ -244,7 +235,6 @@
         false,
         false,
         false,
-        true,
         true
       ]
     },
@@ -271,7 +261,6 @@
         0.9786911,
         0.98912483,
         0.9953385,
-        1,
         1
       ]
     },
@@ -279,7 +268,6 @@
       "name": "derived-gestureDirection",
       "type": "string",
       "data_points": [
-        "Max",
         "Max",
         "Max",
         "Max",
@@ -325,7 +313,6 @@
         0.9786911,
         0.98912483,
         0.9953385,
-        1,
         1
       ]
     },
@@ -352,7 +339,6 @@
         0.9786911,
         0.98912483,
         0.9953385,
-        1,
         1
       ]
     },
@@ -439,10 +425,6 @@
         {
           "stiffness": 100000,
           "dampingRatio": 1
-        },
-        {
-          "stiffness": 100000,
-          "dampingRatio": 1
         }
       ]
     },
@@ -450,7 +432,6 @@
       "name": "derived-isStable",
       "type": "boolean",
       "data_points": [
-        true,
         true,
         true,
         true,

@@ -12,8 +12,7 @@
     144,
     160,
     176,
-    192,
-    208
+    192
   ],
   "features": [
     {
@@ -32,7 +31,6 @@
         2.1,
         2.1,
         2.1,
-        2.1,
         2.1
       ]
     },
@@ -40,7 +38,6 @@
       "name": "gestureDirection",
       "type": "string",
       "data_points": [
-        "Max",
         "Max",
         "Max",
         "Max",
@@ -72,7 +69,6 @@
         5.969008,
         5.9854507,
         5.9941716,
-        6,
         6
       ]
     },
@@ -81,7 +77,6 @@
       "type": "float",
       "data_points": [
         0,
-        6,
         6,
         6,
         6,
@@ -151,10 +146,6 @@
         {
           "stiffness": 1214.8745,
           "dampingRatio": 0.91111106
-        },
-        {
-          "stiffness": 1214.8745,
-          "dampingRatio": 0.91111106
         }
       ]
     },
@@ -174,7 +165,6 @@
         false,
         false,
         false,
-        true,
         true
       ]
     }

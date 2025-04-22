@@ -62,14 +62,15 @@ class ViewMotionValueToolkit(private val animatorTestRule: AnimatorTestRule) :
         val testHarness =
             runBlocking(Dispatchers.Main) {
                 ViewMotionValueTestHarness(
-                    initialValue,
-                    initialDirection,
-                    spec,
-                    stableThreshold,
-                    directionChangeSlop,
-                    frameEmitter.asStateFlow(),
-                    createDerived,
-                )
+                        initialValue,
+                        initialDirection,
+                        spec,
+                        stableThreshold,
+                        directionChangeSlop,
+                        frameEmitter.asStateFlow(),
+                        createDerived,
+                    )
+                    .also { animatorTestRule.initNewAnimators() }
             }
 
         val underTest = testHarness.underTest
@@ -89,10 +90,13 @@ class ViewMotionValueToolkit(private val animatorTestRule: AnimatorTestRule) :
         runBlocking(Dispatchers.Main) {
             val startFrameTime = animatorTestRule.currentTime
             while (!recordingJob.isCompleted) {
-                frameEmitter.tryEmit(animatorTestRule.currentTime + FrameDurationMs)
-                runCurrent()
                 recordFrame(TimestampFrameId(animatorTestRule.currentTime - startFrameTime))
-                animatorTestRule.advanceTimeBy(FrameDurationMs)
+
+                frameEmitter.tryEmit(animatorTestRule.currentTime)
+                runCurrent()
+
+                animatorTestRule.advanceTimeBy(FrameDuration.inWholeMilliseconds)
+                runCurrent()
             }
 
             val timeSeries =
@@ -102,10 +106,6 @@ class ViewMotionValueToolkit(private val animatorTestRule: AnimatorTestRule) :
             underTest.dispose()
             verifyTimeSeries(motionTestRule, timeSeries, verifyTimeSeries)
         }
-    }
-
-    companion object {
-        const val FrameDurationMs = 16L
     }
 }
 

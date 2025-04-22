@@ -18,16 +18,16 @@
 
 package com.android.mechanics.testing
 
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.test.junit4.ComposeContentTestRule
+import androidx.compose.runtime.snapshots.Snapshot
 import com.android.mechanics.DistanceGestureContext
 import com.android.mechanics.MotionValue
 import com.android.mechanics.debug.FrameData
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.MotionSpec
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,16 +36,15 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import platform.test.motion.MotionTestRule
+import platform.test.motion.compose.runMonotonicClockTest
 import platform.test.motion.golden.FrameId
 import platform.test.motion.golden.TimeSeries
 import platform.test.motion.golden.TimestampFrameId
 
 /** Toolkit to support [MotionValue] motion tests. */
-class ComposeMotionValueToolkit(val composeTestRule: ComposeContentTestRule) :
-    MotionValueToolkit<MotionValue, DistanceGestureContext>() {
+data object ComposeMotionValueToolkit : MotionValueToolkit<MotionValue, DistanceGestureContext>() {
 
     override fun goldenTest(
         motionTestRule: MotionTestRule<*>,
@@ -58,75 +57,74 @@ class ComposeMotionValueToolkit(val composeTestRule: ComposeContentTestRule) :
         stableThreshold: Float,
         verifyTimeSeries: TimeSeries.() -> VerifyTimeSeriesResult,
         testInput: suspend InputScope<MotionValue, DistanceGestureContext>.() -> Unit,
-    ) = runTest {
-        with(composeTestRule) {
-            val frameEmitter = MutableStateFlow<Long>(0)
+    ) = runMonotonicClockTest {
+        val frameEmitter = MutableStateFlow<Long>(0)
 
-            val testHarness =
-                ComposeMotionValueTestHarness(
-                    initialValue,
-                    initialDirection,
-                    spec,
-                    stableThreshold,
-                    directionChangeSlop,
-                    frameEmitter.asStateFlow(),
-                    createDerived,
-                )
-            val underTest = testHarness.underTest
-            val derived = testHarness.derived
+        val testHarness =
+            ComposeMotionValueTestHarness(
+                initialValue,
+                initialDirection,
+                spec,
+                stableThreshold,
+                directionChangeSlop,
+                frameEmitter.asStateFlow(),
+                createDerived,
+            )
+        val underTest = testHarness.underTest
+        val derived = testHarness.derived
 
-            val inspectors = buildMap {
-                put(underTest, underTest.debugInspector())
-                derived.forEach { put(it, it.debugInspector()) }
+        val motionValues = derived + underTest
+
+        val inspectors = motionValues.map { it to it.debugInspector() }.toMap()
+        val keepRunningJobs = motionValues.map { launch { it.keepRunning() } }
+
+        val recordingJob = launch { testInput.invoke(testHarness) }
+
+        val frameIds = mutableListOf<FrameId>()
+        val frameData = mutableMapOf<MotionValue, MutableList<FrameData>>()
+
+        fun recordFrame(frameId: TimestampFrameId) {
+            frameIds.add(frameId)
+            inspectors.forEach { (motionValue, inspector) ->
+                frameData.computeIfAbsent(motionValue) { mutableListOf() }.add(inspector.frame)
             }
-
-            setContent {
-                LaunchedEffect(Unit) {
-                    launch { underTest.keepRunning() }
-                    derived.forEach { launch { it.keepRunning() } }
-                }
-            }
-
-            val recordingJob = launch { testInput.invoke(testHarness) }
-
-            waitForIdle()
-            mainClock.autoAdvance = false
-
-            val frameIds = mutableListOf<FrameId>()
-            val frameData = mutableMapOf<MotionValue, MutableList<FrameData>>()
-
-            fun recordFrame(frameId: TimestampFrameId) {
-                frameIds.add(frameId)
-                inspectors.forEach { (motionValue, inspector) ->
-                    frameData.computeIfAbsent(motionValue) { mutableListOf() }.add(inspector.frame)
-                }
-            }
-
-            val startFrameTime = mainClock.currentTime
-            recordFrame(TimestampFrameId(mainClock.currentTime - startFrameTime))
-            while (!recordingJob.isCompleted) {
-                frameEmitter.tryEmit(mainClock.currentTime + 16)
-                runCurrent()
-                mainClock.advanceTimeByFrame()
-                recordFrame(TimestampFrameId(mainClock.currentTime - startFrameTime))
-            }
-
-            val timeSeries =
-                createTimeSeries(
-                    frameIds,
-                    frameData.entries
-                        .map { (motionValue, frameData) ->
-                            val prefix =
-                                if (motionValue == underTest) "" else "${motionValue.label}-"
-                            prefix to frameData
-                        }
-                        .sortedBy { it.first },
-                    semantics,
-                )
-
-            inspectors.values.forEach { it.dispose() }
-            verifyTimeSeries(motionTestRule, timeSeries, verifyTimeSeries)
         }
+        runBlocking(Dispatchers.Main) {
+            val startFrameTime = testScheduler.currentTime
+            while (!recordingJob.isCompleted) {
+                recordFrame(TimestampFrameId(testScheduler.currentTime - startFrameTime))
+
+                // Emulate setting input *before* the frame advances. This ensures the `testInput`
+                // coroutine will continue if needed. The specific value for frameEmitter is
+                // irrelevant, it only requires to be unique per frame.
+                frameEmitter.tryEmit(testScheduler.currentTime)
+                testScheduler.runCurrent()
+                // Whenever keepRunning was suspended, allow the snapshotFlow to wake up
+                Snapshot.sendApplyNotifications()
+
+                // Now advance the test clock
+                testScheduler.advanceTimeBy(FrameDuration)
+                // Since the tests capture the debugInspector output, make sure keepRunning()
+                // was able to complete the frame.
+                testScheduler.runCurrent()
+            }
+        }
+
+        val timeSeries =
+            createTimeSeries(
+                frameIds,
+                frameData.entries
+                    .map { (motionValue, frameData) ->
+                        val prefix = if (motionValue == underTest) "" else "${motionValue.label}-"
+                        prefix to frameData
+                    }
+                    .sortedBy { it.first },
+                semantics,
+            )
+
+        inspectors.values.forEach { it.dispose() }
+        keepRunningJobs.forEach { it.cancel() }
+        verifyTimeSeries(motionTestRule, timeSeries, verifyTimeSeries)
     }
 }
 
