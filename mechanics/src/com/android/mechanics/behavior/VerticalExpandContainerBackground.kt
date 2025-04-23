@@ -72,11 +72,10 @@ internal fun Modifier.verticalFloatingExpandContainerBackground(
             obtainGraphicsLayer().apply {
                 clip = true
                 setRoundRectOutline(shapeTopLeft, shapeSize, cornerRadius = currentRadiusPx)
-
-                record { drawContent() }
             }
 
         onDrawWithContent {
+            layer.record { this@onDrawWithContent.drawContent() }
             drawRoundRect(
                 color = backgroundColor,
                 topLeft = shapeTopLeft,
