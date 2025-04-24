@@ -24,19 +24,19 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.mechanics.spec.Breakpoint
 import com.android.mechanics.spec.BreakpointKey
-import com.android.mechanics.spec.DirectionalMotionSpec
-import com.android.mechanics.spec.Guarantee
+import com.android.mechanics.spec.Guarantee.GestureDragDelta
+import com.android.mechanics.spec.Guarantee.InputDelta
+import com.android.mechanics.spec.Guarantee.None
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SegmentKey
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spec.SemanticValue
-import com.android.mechanics.spec.builder
 import com.android.mechanics.spec.builder.CanBeLastSegment
 import com.android.mechanics.spec.builder.DirectionalBuilderScope
+import com.android.mechanics.spec.builder.MotionBuilderContext
 import com.android.mechanics.spec.builder.directionalMotionSpec
-import com.android.mechanics.spec.reverseBuilder
 import com.android.mechanics.spec.with
 import com.android.mechanics.testing.CapturedSemantics
 import com.android.mechanics.testing.ComposeMotionValueToolkit
@@ -63,7 +63,7 @@ import platform.test.motion.golden.DataPointTypes.string
 import platform.test.motion.testing.createGoldenPathManager
 
 @RunWith(AndroidJUnit4::class)
-class MotionValueTest {
+class MotionValueTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Default {
     private val goldenPathManager =
         createGoldenPathManager("frameworks/libs/systemui/mechanics/tests/goldens")
 
@@ -93,9 +93,9 @@ class MotionValueTest {
     fun changingInput_addsAnimationToMapping_becomesStable() =
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .completeWith(Mapping.Linear(factor = 0.5f))
+                specBuilder(Mapping.Zero) {
+                    mapping(breakpoint = 1f, mapping = Mapping.Linear(factor = 0.5f))
+                }
         ) {
             animateValueTo(1.1f, changePerFrame = 0.5f)
             while (underTest.isStable) {
@@ -107,7 +107,7 @@ class MotionValueTest {
     @Test
     fun segmentChange_inMaxDirection_animatedWhenReachingBreakpoint() =
         motion.goldenTest(
-            spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One)
+            spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 1f, value = 1f) }
         ) {
             animateValueTo(1f, changePerFrame = 0.5f)
             awaitStable()
@@ -118,7 +118,7 @@ class MotionValueTest {
         motion.goldenTest(
             initialValue = 2f,
             initialDirection = InputDirection.Min,
-            spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One),
+            spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 1f, value = 1f) },
         ) {
             animateValueTo(1f, changePerFrame = 0.5f)
             awaitStable()
@@ -127,7 +127,7 @@ class MotionValueTest {
     @Test
     fun segmentChange_inMaxDirection_springAnimationStartedRetroactively() =
         motion.goldenTest(
-            spec = specBuilder(Mapping.Zero).toBreakpoint(.75f).completeWith(Mapping.One)
+            spec = specBuilder(Mapping.Zero) { mapping(breakpoint = .75f, mapping = Mapping.One) }
         ) {
             animateValueTo(1f, changePerFrame = 0.5f)
             awaitStable()
@@ -138,7 +138,7 @@ class MotionValueTest {
         motion.goldenTest(
             initialValue = 2f,
             initialDirection = InputDirection.Min,
-            spec = specBuilder(Mapping.Zero).toBreakpoint(1.25f).completeWith(Mapping.One),
+            spec = specBuilder(Mapping.Zero) { mapping(breakpoint = 1.25f, mapping = Mapping.One) },
         ) {
             animateValueTo(1f, changePerFrame = 0.5f)
             awaitStable()
@@ -148,9 +148,9 @@ class MotionValueTest {
     fun segmentChange_guaranteeNone_springAnimatesIndependentOfInput() =
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .completeWith(Mapping.One, guarantee = Guarantee.None)
+                specBuilder(Mapping.Zero) {
+                    constantValue(breakpoint = 1f, guarantee = None, value = 1f)
+                }
         ) {
             animateValueTo(5f, changePerFrame = 0.5f)
             awaitStable()
@@ -160,9 +160,9 @@ class MotionValueTest {
     fun segmentChange_guaranteeInputDelta_springCompletesWithinDistance() =
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .completeWith(Mapping.One, guarantee = Guarantee.InputDelta(3f))
+                specBuilder(Mapping.Zero) {
+                    constantValue(breakpoint = 1f, guarantee = InputDelta(3f), value = 1f)
+                }
         ) {
             animateValueTo(4f, changePerFrame = 0.5f)
         }
@@ -171,9 +171,9 @@ class MotionValueTest {
     fun segmentChange_guaranteeGestureDragDelta_springCompletesWithinDistance() =
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .completeWith(Mapping.One, guarantee = Guarantee.GestureDragDelta(3f))
+                specBuilder(Mapping.Zero) {
+                    constantValue(breakpoint = 1f, guarantee = GestureDragDelta(3f), value = 1f)
+                }
         ) {
             animateValueTo(1f, changePerFrame = 0.5f)
             while (!underTest.isStable) {
@@ -184,7 +184,7 @@ class MotionValueTest {
 
     @Test
     fun segmentChange_appliesOutputVelocity_atSpringStart() =
-        motion.goldenTest(spec = specBuilder().toBreakpoint(10f).completeWith(Mapping.Fixed(20f))) {
+        motion.goldenTest(spec = specBuilder { constantValue(breakpoint = 10f, value = 20f) }) {
             animateValueTo(11f, changePerFrame = 3f)
             awaitStable()
         }
@@ -193,11 +193,10 @@ class MotionValueTest {
     fun segmentChange_appliesOutputVelocity_springVelocityIsNotAppliedTwice() =
         motion.goldenTest(
             spec =
-                specBuilder()
-                    .toBreakpoint(10f)
-                    .continueWith(Mapping.Linear(factor = 1f, offset = 20f))
-                    .toBreakpoint(20f)
-                    .completeWith(Mapping.Fixed(40f))
+                specBuilder {
+                    fractionalInputFromCurrent(breakpoint = 10f, fraction = 1f, delta = 20f)
+                    constantValue(breakpoint = 20f, value = 40f)
+                }
         ) {
             animateValueTo(21f, changePerFrame = 3f)
             awaitStable()
@@ -208,13 +207,11 @@ class MotionValueTest {
     fun segmentChange_animationAtRest_doesNotAffectVelocity() =
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .continueWith(Mapping.Fixed(20f))
-                    .toBreakpoint(2f)
-                    .continueWith(Mapping.Fixed(20f))
-                    .toBreakpoint(3f)
-                    .completeWith(Mapping.Fixed(10f)),
+                specBuilder(Mapping.Zero) {
+                    constantValue(breakpoint = 1f, value = 20f)
+                    constantValue(breakpoint = 2f, value = 20f)
+                    constantValue(breakpoint = 3f, value = 10f)
+                },
             stableThreshold = 1f,
         ) {
             this.updateInput(1.5f)
@@ -226,12 +223,10 @@ class MotionValueTest {
     @Test
     fun specChange_shiftSegmentBackwards_doesNotAnimateWithinSegment_animatesSegmentChange() {
         fun generateSpec(offset: Float) =
-            specBuilder(Mapping.Zero)
-                .toBreakpoint(offset, B1)
-                .jumpTo(1f)
-                .continueWithTargetValue(2f)
-                .toBreakpoint(offset + 1f, B2)
-                .completeWith(Mapping.Zero)
+            specBuilder(Mapping.Zero) {
+                targetFromCurrent(breakpoint = offset, key = B1, delta = 1f, to = 2f)
+                constantValue(breakpoint = offset + 1f, key = B2, value = 0f)
+            }
 
         motion.goldenTest(spec = generateSpec(0f), initialValue = .5f) {
             var offset = 0f
@@ -247,12 +242,10 @@ class MotionValueTest {
     @Test
     fun specChange_shiftSegmentForward_doesNotAnimateWithinSegment_animatesSegmentChange() {
         fun generateSpec(offset: Float) =
-            specBuilder(Mapping.Zero)
-                .toBreakpoint(offset, B1)
-                .jumpTo(1f)
-                .continueWithTargetValue(2f)
-                .toBreakpoint(offset + 1f, B2)
-                .completeWith(Mapping.Zero)
+            specBuilder(Mapping.Zero) {
+                targetFromCurrent(breakpoint = offset, key = B1, delta = 1f, to = 2f)
+                constantValue(breakpoint = offset + 1f, key = B2, value = 0f)
+            }
 
         motion.goldenTest(spec = generateSpec(0f), initialValue = .5f) {
             var offset = 0f
@@ -268,7 +261,7 @@ class MotionValueTest {
     @Test
     fun directionChange_maxToMin_changesSegmentWithDirectionChange() =
         motion.goldenTest(
-            spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One),
+            spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 1f, value = 1f) },
             initialValue = 2f,
             initialDirection = InputDirection.Max,
             directionChangeSlop = 3f,
@@ -280,7 +273,7 @@ class MotionValueTest {
     @Test
     fun directionChange_minToMax_changesSegmentWithDirectionChange() =
         motion.goldenTest(
-            spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One),
+            spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 1f, value = 1f) },
             initialValue = 0f,
             initialDirection = InputDirection.Min,
             directionChangeSlop = 3f,
@@ -293,9 +286,9 @@ class MotionValueTest {
     fun directionChange_maxToMin_appliesGuarantee_afterDirectionChange() =
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .completeWith(Mapping.One, guarantee = Guarantee.InputDelta(1f)),
+                specBuilder(Mapping.Zero) {
+                    constantValue(breakpoint = 1f, value = 1f, guarantee = InputDelta(1f))
+                },
             initialValue = 2f,
             initialDirection = InputDirection.Max,
             directionChangeSlop = 3f,
@@ -308,11 +301,10 @@ class MotionValueTest {
     fun traverseSegments_maxDirection_noGuarantee_addsDiscontinuityToOngoingAnimation() =
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .continueWith(Mapping.One)
-                    .toBreakpoint(2f)
-                    .completeWith(Mapping.Two)
+                specBuilder(Mapping.Zero) {
+                    constantValue(breakpoint = 1f, value = 1f)
+                    constantValue(breakpoint = 2f, value = 2f)
+                }
         ) {
             animateValueTo(3f, changePerFrame = 0.2f)
             awaitStable()
@@ -322,11 +314,10 @@ class MotionValueTest {
     fun traverseSegmentsInOneFrame_noGuarantee_combinesDiscontinuity() =
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .continueWith(Mapping.One)
-                    .toBreakpoint(2f)
-                    .completeWith(Mapping.Two)
+                specBuilder(Mapping.Zero) {
+                    constantValue(breakpoint = 1f, value = 1f)
+                    constantValue(breakpoint = 2f, value = 2f)
+                }
         ) {
             updateInput(2.5f)
             awaitStable()
@@ -336,14 +327,18 @@ class MotionValueTest {
     fun traverseSegmentsInOneFrame_withGuarantee_appliesGuarantees() =
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .jumpBy(5f, guarantee = Guarantee.InputDelta(.9f))
-                    .continueWithConstantValue()
-                    .toBreakpoint(2f)
-                    .jumpBy(1f, guarantee = Guarantee.InputDelta(.9f))
-                    .continueWithConstantValue()
-                    .complete()
+                specBuilder(Mapping.Zero) {
+                    constantValueFromCurrent(
+                        breakpoint = 1f,
+                        delta = 5f,
+                        guarantee = InputDelta(.9f),
+                    )
+                    constantValueFromCurrent(
+                        breakpoint = 2f,
+                        delta = 1f,
+                        guarantee = InputDelta(.9f),
+                    )
+                }
         ) {
             updateInput(2.1f)
             awaitStable()
@@ -353,11 +348,10 @@ class MotionValueTest {
     fun traverseSegmentsInOneFrame_withDirectionChange_appliesGuarantees() =
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .continueWith(Mapping.One, guarantee = Guarantee.InputDelta(1f))
-                    .toBreakpoint(2f)
-                    .completeWith(Mapping.Two),
+                specBuilder(Mapping.Zero) {
+                    constantValue(breakpoint = 1f, value = 1f, guarantee = InputDelta(1f))
+                    constantValue(breakpoint = 2f, value = 2f)
+                },
             initialValue = 2.5f,
             initialDirection = InputDirection.Max,
             directionChangeSlop = 1f,
@@ -371,8 +365,8 @@ class MotionValueTest {
     fun changeDirection_flipsBetweenDirectionalSegments() {
         val spec =
             MotionSpec(
-                maxDirection = forwardSpecBuilder(Mapping.Zero).complete(),
-                minDirection = reverseSpecBuilder(Mapping.One).complete(),
+                maxDirection = directionalMotionSpec(Mapping.Zero),
+                minDirection = directionalMotionSpec(Mapping.One),
             )
 
         motion.goldenTest(
@@ -447,7 +441,7 @@ class MotionValueTest {
     @Test
     fun derivedValue_reflectsInputChangeInSameFrame() {
         motion.goldenTest(
-            spec = specBuilder(Mapping.Zero).toBreakpoint(0.5f).completeWith(Mapping.One),
+            spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 0.5f, value = 1f) },
             createDerived = { primary ->
                 listOf(MotionValue.createDerived(primary, MotionSpec.Empty, label = "derived"))
             },
@@ -470,12 +464,12 @@ class MotionValueTest {
     @Test
     fun derivedValue_hasAnimationLifecycleOnItsOwn() {
         motion.goldenTest(
-            spec = specBuilder(Mapping.Zero).toBreakpoint(0.5f).completeWith(Mapping.One),
+            spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 0.5f, value = 1f) },
             createDerived = { primary ->
                 listOf(
                     MotionValue.createDerived(
                         primary,
-                        specBuilder(Mapping.One).toBreakpoint(0.5f).completeWith(Mapping.Zero),
+                        specBuilder(Mapping.One) { constantValue(breakpoint = 0.5f, value = 0f) },
                         label = "derived",
                     )
                 )
@@ -489,7 +483,7 @@ class MotionValueTest {
     @Test
     fun nonFiniteNumbers_producesNaN_recoversOnSubsequentFrames() {
         motion.goldenTest(
-            spec = specBuilder({ if (it >= 1f) Float.NaN else 0f }).complete(),
+            spec = MotionSpec(directionalMotionSpec({ if (it >= 1f) Float.NaN else 0f })),
             verifyTimeSeries = {
                 assertThat(output.drop(1).take(5))
                     .containsExactlyElementsIn(listOf(0f, Float.NaN, Float.NaN, 0f, 0f))
@@ -518,8 +512,10 @@ class MotionValueTest {
             },
         ) {
             animatedInputSequence(0f, 1f)
-            underTest.spec =
-                specBuilder().toBreakpoint(0f).completeWith({ if (it >= 1f) Float.NaN else 0f })
+            underTest.spec = specBuilder {
+                mapping(breakpoint = 0f) { if (it >= 1f) Float.NaN else 0f }
+            }
+
             awaitFrames()
 
             animatedInputSequence(0f, 0f)
@@ -533,9 +529,9 @@ class MotionValueTest {
     fun nonFiniteNumbers_segmentTraverse_skipsAnimation() {
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .completeWith({ if (it < 2f) Float.NaN else 2f }),
+                specBuilder(Mapping.Zero) {
+                    mapping(breakpoint = 1f) { if (it < 2f) Float.NaN else 2f }
+                },
             verifyTimeSeries = {
                 // The mappings produce a non-finite number during a breakpoint traversal.
                 // The animation thereof is skipped to avoid poisoning the state with non-finite
@@ -631,24 +627,5 @@ class MotionValueTest {
                 resetSpring = Springs.fast,
             )
         }
-
-        fun specBuilder(firstSegment: Mapping = Mapping.Identity) =
-            MotionSpec.builder(
-                defaultSpring = Springs.default,
-                resetSpring = Springs.fast,
-                initialMapping = firstSegment,
-            )
-
-        fun forwardSpecBuilder(firstSegment: Mapping = Mapping.Identity) =
-            DirectionalMotionSpec.builder(
-                defaultSpring = Springs.default,
-                initialMapping = firstSegment,
-            )
-
-        fun reverseSpecBuilder(firstSegment: Mapping = Mapping.Identity) =
-            DirectionalMotionSpec.reverseBuilder(
-                defaultSpring = Springs.default,
-                initialMapping = firstSegment,
-            )
     }
 }

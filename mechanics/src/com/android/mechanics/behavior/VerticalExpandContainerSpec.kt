@@ -27,16 +27,13 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.lerp
 import com.android.mechanics.spec.Breakpoint
 import com.android.mechanics.spec.BreakpointKey
-import com.android.mechanics.spec.DirectionalMotionSpec
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.OnChangeSegmentHandler
 import com.android.mechanics.spec.SegmentData
 import com.android.mechanics.spec.SegmentKey
-import com.android.mechanics.spec.builder
 import com.android.mechanics.spec.builder.directionalMotionSpec
-import com.android.mechanics.spec.reverseBuilder
 import com.android.mechanics.spring.SpringParameters
 
 /** Motion spec for a vertically expandable container. */
@@ -54,23 +51,38 @@ class VerticalExpandContainerSpec(
     val opacitySpring: SpringParameters = Defaults.OpacitySpring,
 ) {
     fun createHeightSpec(motionScheme: MotionScheme, density: Density): MotionSpec {
+        // TODO: michschn@ - replace with MagneticDetach
         return with(density) {
             val spatialSpring = SpringParameters(motionScheme.defaultSpatialSpec())
 
             val detachSpec =
-                DirectionalMotionSpec.builder(
-                        initialMapping = Mapping.Zero,
-                        defaultSpring = spatialSpring,
+                directionalMotionSpec(
+                    initialMapping = Mapping.Zero,
+                    defaultSpring = spatialSpring,
+                ) {
+                    fractionalInputFromCurrent(
+                        breakpoint = 0f,
+                        key = Breakpoints.Attach,
+                        fraction = preDetachRatio,
                     )
-                    .toBreakpoint(0f, key = Breakpoints.Attach)
-                    .continueWith(Mapping.Linear(preDetachRatio))
-                    .toBreakpoint(detachHeight.toPx(), key = Breakpoints.Detach)
-                    .completeWith(Mapping.Identity, detachSpring)
+                    identity(
+                        breakpoint = detachHeight.toPx(),
+                        key = Breakpoints.Detach,
+                        spring = detachSpring,
+                    )
+                }
 
             val attachSpec =
-                DirectionalMotionSpec.reverseBuilder(defaultSpring = spatialSpring)
-                    .toBreakpoint(attachHeight.toPx(), key = Breakpoints.Detach)
-                    .completeWith(mapping = Mapping.Zero, attachSpring)
+                directionalMotionSpec(
+                    initialMapping = Mapping.Zero,
+                    defaultSpring = spatialSpring,
+                ) {
+                    identity(
+                        breakpoint = attachHeight.toPx(),
+                        key = Breakpoints.Detach,
+                        spring = attachSpring,
+                    )
+                }
 
             val segmentHandlers =
                 mapOf<SegmentKey, OnChangeSegmentHandler>(
@@ -116,23 +128,11 @@ class VerticalExpandContainerSpec(
 
     fun createAlphaSpec(motionScheme: MotionScheme, density: Density): MotionSpec {
         return with(density) {
-            val detachSpec =
-                DirectionalMotionSpec.builder(
-                        SpringParameters(motionScheme.defaultEffectsSpec()),
-                        initialMapping = Mapping.Zero,
-                    )
-                    .toBreakpoint(visibleHeight.toPx())
-                    .completeWith(Mapping.One, opacitySpring)
-
-            val attachSpec =
-                DirectionalMotionSpec.builder(
-                        SpringParameters(motionScheme.defaultEffectsSpec()),
-                        initialMapping = Mapping.Zero,
-                    )
-                    .toBreakpoint(visibleHeight.toPx())
-                    .completeWith(Mapping.One, opacitySpring)
-
-            MotionSpec(maxDirection = detachSpec, minDirection = attachSpec)
+            MotionSpec(
+                directionalMotionSpec(opacitySpring, initialMapping = Mapping.Zero) {
+                    constantValue(breakpoint = visibleHeight.toPx(), value = 1f)
+                }
+            )
         }
     }
 

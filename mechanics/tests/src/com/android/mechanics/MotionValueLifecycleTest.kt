@@ -41,7 +41,7 @@ class MotionValueLifecycleTest {
     @Test
     fun keepRunning_suspendsWithoutAnAnimation() = runTest {
         val input = mutableFloatStateOf(0f)
-        val spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One)
+        val spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 1f, value = 1f) }
         val underTest = MotionValue(input::value, FakeGestureContext, spec)
         rule.setContent { LaunchedEffect(Unit) { underTest.keepRunning() } }
 
@@ -90,7 +90,7 @@ class MotionValueLifecycleTest {
     @Test
     fun keepRunning_remainsActiveWhileAnimating() = runTest {
         val input = mutableFloatStateOf(0f)
-        val spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One)
+        val spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 1f, value = 1f) }
         val underTest = MotionValue(input::value, FakeGestureContext, spec)
         rule.setContent { LaunchedEffect(Unit) { underTest.keepRunning() } }
 
@@ -149,7 +149,7 @@ class MotionValueLifecycleTest {
     @Test
     fun keepRunningWhile_stopRunningWhileStable_endsImmediately() = runTest {
         val input = mutableFloatStateOf(0f)
-        val spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One)
+        val spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 1f, value = 1f) }
         val underTest = MotionValue(input::value, FakeGestureContext, spec)
 
         val continueRunning = mutableStateOf(true)

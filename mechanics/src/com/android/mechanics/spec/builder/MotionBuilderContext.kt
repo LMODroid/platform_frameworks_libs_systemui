@@ -80,7 +80,7 @@ fun rememberMotionBuilderContext(): MotionBuilderContext {
     return remember(density, motionScheme) { ComposeMotionBuilderContext(motionScheme, density) }
 }
 
-internal class ComposeMotionBuilderContext(motionScheme: MotionScheme, density: Density) :
+class ComposeMotionBuilderContext(motionScheme: MotionScheme, density: Density) :
     MotionBuilderContext, Density by density {
 
     override val spatial =

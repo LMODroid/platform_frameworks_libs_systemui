@@ -22,7 +22,7 @@ import com.android.mechanics.MotionValueTest.Companion.B1
 import com.android.mechanics.MotionValueTest.Companion.B2
 import com.android.mechanics.MotionValueTest.Companion.specBuilder
 import com.android.mechanics.spec.Breakpoint
-import com.android.mechanics.spec.Guarantee
+import com.android.mechanics.spec.Guarantee.GestureDragDelta
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
@@ -92,7 +92,7 @@ class ViewMotionValueTest {
     @Test
     fun segmentChange_animatedWhenReachingBreakpoint() =
         motion.goldenTest(
-            spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One)
+            spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 1f, value = 1f) }
         ) {
             animateValueTo(1f, changePerFrame = 0.5f)
             awaitStable()
@@ -142,9 +142,9 @@ class ViewMotionValueTest {
     fun gestureContext_listensToGestureContextUpdates() =
         motion.goldenTest(
             spec =
-                specBuilder(Mapping.Zero)
-                    .toBreakpoint(1f)
-                    .completeWith(Mapping.One, guarantee = Guarantee.GestureDragDelta(3f))
+                specBuilder(Mapping.Zero) {
+                    constantValue(breakpoint = 1f, guarantee = GestureDragDelta(3f), value = 1f)
+                }
         ) {
             animateValueTo(1f, changePerFrame = 0.5f)
             while (!underTest.isStable) {
@@ -156,12 +156,10 @@ class ViewMotionValueTest {
     @Test
     fun specChange_triggersAnimation() {
         fun generateSpec(offset: Float) =
-            specBuilder(Mapping.Zero)
-                .toBreakpoint(offset, B1)
-                .jumpTo(1f)
-                .continueWithTargetValue(2f)
-                .toBreakpoint(offset + 1f, B2)
-                .completeWith(Mapping.Zero)
+            specBuilder(Mapping.Zero) {
+                targetFromCurrent(breakpoint = offset, key = B1, delta = 1f, to = 2f)
+                constantValue(breakpoint = offset + 1f, key = B2, value = 0f)
+            }
 
         motion.goldenTest(spec = generateSpec(0f), initialValue = .5f) {
             underTest.spec = generateSpec(1f)
@@ -204,7 +202,7 @@ class ViewMotionValueTest {
     fun update_triggersCallbacksWhileAnimating() = runTest {
         runBlocking(Dispatchers.Main) {
             val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 5f)
-            val spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One)
+            val spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 1f, value = 1f) }
             val underTest = ViewMotionValue(0f, gestureContext, spec)
 
             var invocationCount = 0
@@ -220,7 +218,7 @@ class ViewMotionValueTest {
     fun removeCallback_doesNotTriggerAfterRemoving() = runTest {
         runBlocking(Dispatchers.Main) {
             val gestureContext = DistanceGestureContext(0f, InputDirection.Max, 5f)
-            val spec = specBuilder(Mapping.Zero).toBreakpoint(1f).completeWith(Mapping.One)
+            val spec = specBuilder(Mapping.Zero) { constantValue(breakpoint = 1f, value = 1f) }
             val underTest = ViewMotionValue(0f, gestureContext, spec)
 
             var invocationCount = 0
