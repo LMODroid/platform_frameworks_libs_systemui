@@ -32,10 +32,10 @@ import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SegmentKey
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spec.SemanticValue
-import com.android.mechanics.spec.buildDirectionalMotionSpec
 import com.android.mechanics.spec.builder
 import com.android.mechanics.spec.builder.CanBeLastSegment
 import com.android.mechanics.spec.builder.DirectionalBuilderScope
+import com.android.mechanics.spec.builder.directionalMotionSpec
 import com.android.mechanics.spec.reverseBuilder
 import com.android.mechanics.spec.with
 import com.android.mechanics.testing.CapturedSemantics
@@ -627,7 +627,7 @@ class MotionValueTest {
             init: DirectionalBuilderScope.() -> CanBeLastSegment,
         ): MotionSpec {
             return MotionSpec(
-                buildDirectionalMotionSpec(Springs.default, initialMapping, semantics, init),
+                directionalMotionSpec(Springs.default, initialMapping, semantics, init),
                 resetSpring = Springs.fast,
             )
         }

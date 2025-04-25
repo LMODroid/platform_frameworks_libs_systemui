@@ -29,7 +29,7 @@ import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
-import com.android.mechanics.spec.buildDirectionalMotionSpec
+import com.android.mechanics.spec.builder.directionalMotionSpec
 import com.android.mechanics.spring.SpringParameters
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.launch
@@ -169,7 +169,7 @@ class MotionValueBenchmark {
     private val MotionSpec.Companion.ZeroToOne_AtOne
         get() =
             MotionSpec(
-                buildDirectionalMotionSpec(
+                directionalMotionSpec(
                     defaultSpring = SpringParameters(stiffness = 300f, dampingRatio = .9f),
                     initialMapping = Mapping.Zero,
                 ) {
@@ -228,7 +228,7 @@ class MotionValueBenchmark {
     private val MotionSpec.Companion.ZeroToOne_AtOne_WithGuarantee
         get() =
             MotionSpec(
-                buildDirectionalMotionSpec(
+                directionalMotionSpec(
                     defaultSpring = SpringParameters(stiffness = 300f, dampingRatio = .9f),
                     initialMapping = Mapping.Zero,
                 ) {

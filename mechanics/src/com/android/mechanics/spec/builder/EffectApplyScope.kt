@@ -61,8 +61,8 @@ interface EffectApplyScope : MotionBuilderContext {
     /**
      * Defines spec simultaneously for both, the min and max direction.
      *
-     * The behavior is the same as for `buildDirectionalMotionSpec`, with the notable exception that
-     * the spec to be defined is confined within [minLimit] and [maxLimit]. Specifying breakpoints
+     * The behavior is the same as for `directionalMotionSpec`, with the notable exception that the
+     * spec to be defined is confined within [minLimit] and [maxLimit]. Specifying breakpoints
      * outside of this range will throw.
      *
      * Will throw if [forward] or [unidirectional] has been called in this scope before.
@@ -73,7 +73,7 @@ interface EffectApplyScope : MotionBuilderContext {
      * @param initialMapping [Mapping] for the first segment after [minLimit].
      * @param semantics Initial semantics for the effect.
      * @param init Configures the effect's spec using [DirectionalBuilderScope].
-     * @see com.android.mechanics.spec.buildDirectionalMotionSpec for in-depth documentation.
+     * @see com.android.mechanics.spec.directionalMotionSpec for in-depth documentation.
      */
     fun unidirectional(
         initialMapping: Mapping,
@@ -84,8 +84,8 @@ interface EffectApplyScope : MotionBuilderContext {
     /**
      * Defines spec simultaneously for both, the min and max direction, using a single segment only.
      *
-     * The behavior is the same as for `buildDirectionalMotionSpec`, with the notable exception that
-     * the spec to be defined is confined within [minLimit] and [maxLimit].
+     * The behavior is the same as for `directionalMotionSpec`, with the notable exception that the
+     * spec to be defined is confined within [minLimit] and [maxLimit].
      *
      * Will throw if [forward] or [unidirectional] has been called in this scope before.
      *
@@ -94,15 +94,15 @@ interface EffectApplyScope : MotionBuilderContext {
      *
      * @param mapping [Mapping] to be used between [minLimit] and [maxLimit].
      * @param semantics Initial semantics for the effect.
-     * @see com.android.mechanics.spec.buildDirectionalMotionSpec for in depth documentation.
+     * @see com.android.mechanics.spec.directionalMotionSpec for in depth documentation.
      */
     fun unidirectional(mapping: Mapping, semantics: List<SemanticValue<*>> = emptyList())
 
     /**
      * Defines the spec for max direction.
      *
-     * The behavior is the same as for `buildDirectionalMotionSpec`, with the notable exception that
-     * the spec to be defined is confined within [minLimit] and [maxLimit]. Specifying breakpoints
+     * The behavior is the same as for `directionalMotionSpec`, with the notable exception that the
+     * spec to be defined is confined within [minLimit] and [maxLimit]. Specifying breakpoints
      * outside of this range will throw.
      *
      * Will throw if [forward] or [unidirectional] has been called in this scope before.
@@ -113,7 +113,7 @@ interface EffectApplyScope : MotionBuilderContext {
      * @param initialMapping [Mapping] for the first segment after [minLimit].
      * @param semantics Initial semantics for the effect.
      * @param init Configures the effect's spec using [DirectionalBuilderScope].
-     * @see com.android.mechanics.spec.buildDirectionalMotionSpec for in-depth documentation.
+     * @see com.android.mechanics.spec.directionalMotionSpec for in-depth documentation.
      */
     fun forward(
         initialMapping: Mapping,
@@ -124,8 +124,8 @@ interface EffectApplyScope : MotionBuilderContext {
     /**
      * Defines the spec for max direction, using a single segment only.
      *
-     * The behavior is the same as for `buildDirectionalMotionSpec`, with the notable exception that
-     * the spec to be defined is confined within [minLimit] and [maxLimit].
+     * The behavior is the same as for `directionalMotionSpec`, with the notable exception that the
+     * spec to be defined is confined within [minLimit] and [maxLimit].
      *
      * Will throw if [forward] or [unidirectional] has been called in this scope before.
      *
@@ -134,15 +134,15 @@ interface EffectApplyScope : MotionBuilderContext {
      *
      * @param mapping [Mapping] to be used between [minLimit] and [maxLimit].
      * @param semantics Initial semantics for the effect.
-     * @see com.android.mechanics.spec.buildDirectionalMotionSpec for in depth documentation.
+     * @see com.android.mechanics.spec.directionalMotionSpec for in depth documentation.
      */
     fun forward(mapping: Mapping, semantics: List<SemanticValue<*>> = emptyList())
 
     /**
      * Defines the spec for min direction.
      *
-     * The behavior is the same as for `buildDirectionalMotionSpec`, with the notable exception that
-     * the spec to be defined is confined within [minLimit] and [maxLimit]. Specifying breakpoints
+     * The behavior is the same as for `directionalMotionSpec`, with the notable exception that the
+     * spec to be defined is confined within [minLimit] and [maxLimit]. Specifying breakpoints
      * outside of this range will throw.
      *
      * Will throw if [forward] or [unidirectional] has been called in this scope before.
@@ -153,7 +153,7 @@ interface EffectApplyScope : MotionBuilderContext {
      * @param initialMapping [Mapping] for the first segment after [minLimit].
      * @param semantics Initial semantics for the effect.
      * @param init Configures the effect's spec using [DirectionalBuilderScope].
-     * @see com.android.mechanics.spec.buildDirectionalMotionSpec for in-depth documentation.
+     * @see com.android.mechanics.spec.directionalMotionSpec for in-depth documentation.
      */
     fun backward(
         initialMapping: Mapping,
@@ -164,8 +164,8 @@ interface EffectApplyScope : MotionBuilderContext {
     /**
      * Defines the spec for min direction, using a single segment only.
      *
-     * The behavior is the same as for `buildDirectionalMotionSpec`, with the notable exception that
-     * the spec to be defined is confined within [minLimit] and [maxLimit].
+     * The behavior is the same as for `directionalMotionSpec`, with the notable exception that the
+     * spec to be defined is confined within [minLimit] and [maxLimit].
      *
      * Will throw if [forward] or [unidirectional] has been called in this scope before.
      *
@@ -174,7 +174,7 @@ interface EffectApplyScope : MotionBuilderContext {
      *
      * @param mapping [Mapping] to be used between [minLimit] and [maxLimit].
      * @param semantics Initial semantics for the effect.
-     * @see com.android.mechanics.spec.buildDirectionalMotionSpec for in depth documentation.
+     * @see com.android.mechanics.spec.directionalMotionSpec for in depth documentation.
      */
     fun backward(mapping: Mapping, semantics: List<SemanticValue<*>> = emptyList())
 

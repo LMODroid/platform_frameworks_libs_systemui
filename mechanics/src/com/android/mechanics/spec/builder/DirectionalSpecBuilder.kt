@@ -14,11 +14,46 @@
  * limitations under the License.
  */
 
-package com.android.mechanics.spec
+package com.android.mechanics.spec.builder
 
-import com.android.mechanics.spec.builder.DirectionalBuilderFn
-import com.android.mechanics.spec.builder.DirectionalBuilderImpl
+import com.android.mechanics.spec.Breakpoint
+import com.android.mechanics.spec.DirectionalMotionSpec
+import com.android.mechanics.spec.Mapping
+import com.android.mechanics.spec.SegmentSemanticValues
+import com.android.mechanics.spec.SemanticValue
 import com.android.mechanics.spring.SpringParameters
+
+/**
+ * Builds a [DirectionalMotionSpec] for spatial values by defining a sequence of ([Breakpoint],
+ * [Mapping]) pairs
+ *
+ * The [initialMapping] is [Mapping.Identity], and the Material spatial.default spring is used,
+ * unless otherwise specified.
+ *
+ * @see directionalMotionSpec
+ */
+fun MotionBuilderContext.spatialDirectionalMotionSpec(
+    defaultSpring: SpringParameters = this.spatial.default,
+    initialMapping: Mapping = Mapping.Identity,
+    semantics: List<SemanticValue<*>> = emptyList(),
+    init: DirectionalBuilderFn,
+) = directionalMotionSpec(defaultSpring, initialMapping, semantics, init)
+
+/**
+ * Builds a [DirectionalMotionSpec] for effects values by defining a sequence of ([Breakpoint],
+ * [Mapping]) pairs
+ *
+ * The [initialMapping] is [Mapping.Zero], and the Material effects.default spring is used, unless
+ * otherwise specified.
+ *
+ * @see directionalMotionSpec
+ */
+fun MotionBuilderContext.effectsDirectionalMotionSpec(
+    defaultSpring: SpringParameters = this.effects.default,
+    initialMapping: Mapping = Mapping.Zero,
+    semantics: List<SemanticValue<*>> = emptyList(),
+    init: DirectionalBuilderFn,
+) = directionalMotionSpec(defaultSpring, initialMapping, semantics, init)
 
 /**
  * Builds a [DirectionalMotionSpec] by defining a sequence of ([Breakpoint], [Mapping]) pairs.
@@ -30,7 +65,7 @@ import com.android.mechanics.spring.SpringParameters
  *
  * Example Usage:
  * ```kotlin
- * val motionSpec = buildDirectionalMotionSpec(
+ * val motionSpec = directionalMotionSpec(
  *     defaultSpring = materialSpatial,
  *
  *     // Start as a constant transition, always 0.
@@ -56,7 +91,7 @@ import com.android.mechanics.spring.SpringParameters
  *   [initialMapping].
  *     @return The constructed [DirectionalMotionSpec].
  */
-fun buildDirectionalMotionSpec(
+fun directionalMotionSpec(
     defaultSpring: SpringParameters,
     initialMapping: Mapping = Mapping.Identity,
     semantics: List<SemanticValue<*>> = emptyList(),
@@ -78,7 +113,7 @@ fun buildDirectionalMotionSpec(
  * @param semantics Semantics values for this spec.
  * @return A new [DirectionalMotionSpec] instance configured with the provided parameters.
  */
-fun buildDirectionalMotionSpec(
+fun directionalMotionSpec(
     mapping: Mapping = Mapping.Identity,
     semantics: List<SemanticValue<*>> = emptyList(),
 ): DirectionalMotionSpec {

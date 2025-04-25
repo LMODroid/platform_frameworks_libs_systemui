@@ -34,8 +34,8 @@ import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.OnChangeSegmentHandler
 import com.android.mechanics.spec.SegmentData
 import com.android.mechanics.spec.SegmentKey
-import com.android.mechanics.spec.buildDirectionalMotionSpec
 import com.android.mechanics.spec.builder
+import com.android.mechanics.spec.builder.directionalMotionSpec
 import com.android.mechanics.spec.reverseBuilder
 import com.android.mechanics.spring.SpringParameters
 
@@ -102,10 +102,10 @@ class VerticalExpandContainerSpec(
     ): MotionSpec {
         return with(density) {
             if (isFloating) {
-                MotionSpec(buildDirectionalMotionSpec(Mapping.Fixed(intrinsicWidth)))
+                MotionSpec(directionalMotionSpec(Mapping.Fixed(intrinsicWidth)))
             } else {
                 MotionSpec(
-                    buildDirectionalMotionSpec({ input ->
+                    directionalMotionSpec({ input ->
                         val fraction = (input / detachHeight.toPx()).fastCoerceIn(0f, 1f)
                         intrinsicWidth - lerp(widthOffset.toPx(), 0f, fraction)
                     })

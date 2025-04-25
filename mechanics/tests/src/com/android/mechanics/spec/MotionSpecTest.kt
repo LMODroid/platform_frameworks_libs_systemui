@@ -17,6 +17,7 @@
 package com.android.mechanics.spec
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.mechanics.spec.builder.directionalMotionSpec
 import com.android.mechanics.spring.SpringParameters
 import com.android.mechanics.testing.BreakpointSubject.Companion.assertThat
 import com.google.common.truth.Truth.assertThat
@@ -248,8 +249,8 @@ class MotionSpecTest {
     fun semanticState_returnsStateFromSegment() {
         val underTest =
             MotionSpec(
-                maxDirection = buildDirectionalMotionSpec(semantics = listOf(S1 with "One")),
-                minDirection = buildDirectionalMotionSpec(semantics = listOf(S1 with "Two")),
+                maxDirection = directionalMotionSpec(semantics = listOf(S1 with "One")),
+                minDirection = directionalMotionSpec(semantics = listOf(S1 with "Two")),
             )
 
         val maxDirectionSegment = SegmentKey(BMin, BMax, InputDirection.Max)
@@ -261,7 +262,7 @@ class MotionSpecTest {
 
     @Test
     fun semanticState_unknownSegment_throws() {
-        val underTest = MotionSpec(buildDirectionalMotionSpec(semantics = listOf(S1 with "One")))
+        val underTest = MotionSpec(directionalMotionSpec(semantics = listOf(S1 with "One")))
 
         val unknownSegment = SegmentKey(BMin, B1, InputDirection.Max)
         assertFailsWith<NoSuchElementException> { underTest.semanticState(S1, unknownSegment) }
@@ -269,7 +270,7 @@ class MotionSpecTest {
 
     @Test
     fun semanticState_unknownSemantics_returnsNull() {
-        val underTest = MotionSpec(buildDirectionalMotionSpec(semantics = listOf(S1 with "One")))
+        val underTest = MotionSpec(directionalMotionSpec(semantics = listOf(S1 with "One")))
 
         val maxDirectionSegment = SegmentKey(BMin, BMax, InputDirection.Max)
         assertThat(underTest.semanticState(S2, maxDirectionSegment)).isNull()
@@ -279,10 +280,7 @@ class MotionSpecTest {
     fun semantics_returnsAllValuesForSegment() {
         val underTest =
             MotionSpec(
-                buildDirectionalMotionSpec(
-                    Spring,
-                    semantics = listOf(S1 with "One", S2 with "AAA"),
-                ) {
+                directionalMotionSpec(Spring, semantics = listOf(S1 with "One", S2 with "AAA")) {
                     mapping(
                         breakpoint = 0f,
                         mapping = Mapping.Identity,

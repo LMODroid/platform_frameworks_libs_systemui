@@ -28,7 +28,7 @@ import com.android.mechanics.spring.SpringParameters
 /**
  * Internal, reusable implementation of the [DirectionalBuilderScope].
  *
- * Clients must use [buildDirectionalMotionSpec] instead.
+ * Clients must use [directionalMotionSpec] instead.
  */
 internal class DirectionalBuilderImpl(
     override val defaultSpring: SpringParameters,

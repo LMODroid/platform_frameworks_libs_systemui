@@ -19,7 +19,6 @@ package com.android.mechanics.spec.builder
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.SemanticValue
-import com.android.mechanics.spec.buildDirectionalMotionSpec
 import com.android.mechanics.spring.SpringParameters
 
 /**
@@ -122,7 +121,7 @@ fun MotionBuilderContext.fixedValueSpec(
     semantics: List<SemanticValue<*>> = emptyList(),
 ): MotionSpec {
     return MotionSpec(
-        buildDirectionalMotionSpec(Mapping.Fixed(value), semantics),
+        directionalMotionSpec(Mapping.Fixed(value), semantics),
         resetSpring = resetSpring,
     )
 }

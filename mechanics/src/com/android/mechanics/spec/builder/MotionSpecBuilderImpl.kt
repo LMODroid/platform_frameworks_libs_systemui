@@ -29,7 +29,6 @@ import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.spec.OnChangeSegmentHandler
 import com.android.mechanics.spec.SegmentKey
 import com.android.mechanics.spec.SemanticValue
-import com.android.mechanics.spec.buildDirectionalMotionSpec
 import com.android.mechanics.spring.SpringParameters
 
 internal class MotionSpecBuilderImpl(
@@ -55,7 +54,7 @@ internal class MotionSpecBuilderImpl(
 
     fun build(): MotionSpec {
         if (placedEffects.isEmpty()) {
-            return MotionSpec(buildDirectionalMotionSpec(baseMapping), resetSpring = resetSpring)
+            return MotionSpec(directionalMotionSpec(baseMapping), resetSpring = resetSpring)
         }
 
         builders =
