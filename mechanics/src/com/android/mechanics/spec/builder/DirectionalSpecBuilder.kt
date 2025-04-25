@@ -33,9 +33,9 @@ import com.android.mechanics.spring.SpringParameters
  * @see directionalMotionSpec
  */
 fun MotionBuilderContext.spatialDirectionalMotionSpec(
-    defaultSpring: SpringParameters = this.spatial.default,
     initialMapping: Mapping = Mapping.Identity,
     semantics: List<SemanticValue<*>> = emptyList(),
+    defaultSpring: SpringParameters = this.spatial.default,
     init: DirectionalBuilderFn,
 ) = directionalMotionSpec(defaultSpring, initialMapping, semantics, init)
 
@@ -49,9 +49,9 @@ fun MotionBuilderContext.spatialDirectionalMotionSpec(
  * @see directionalMotionSpec
  */
 fun MotionBuilderContext.effectsDirectionalMotionSpec(
-    defaultSpring: SpringParameters = this.effects.default,
     initialMapping: Mapping = Mapping.Zero,
     semantics: List<SemanticValue<*>> = emptyList(),
+    defaultSpring: SpringParameters = this.effects.default,
     init: DirectionalBuilderFn,
 ) = directionalMotionSpec(defaultSpring, initialMapping, semantics, init)
 

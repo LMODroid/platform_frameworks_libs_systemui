@@ -168,6 +168,24 @@ class DirectionalBuilderImplTest {
     }
 
     @Test
+    fun directionalSpec_mappingBuilder_identity_addsIdentityMapping() {
+        val result = directionalMotionSpec(Spring, Mapping.Zero) { identity(breakpoint = 10f) }
+        assertThat(result).mappings().containsExactly(Mapping.Zero, Mapping.Identity).inOrder()
+        assertThat(result).breakpoints().positions().containsExactly(10f)
+    }
+
+    @Test
+    fun directionalSpec_mappingBuilder_identityWithDelta_producesLinearMapping() {
+        val result =
+            directionalMotionSpec(Spring, Mapping.Zero) { identity(breakpoint = 10f, delta = 2f) }
+
+        assertThat(result)
+            .mappings()
+            .atOrAfter(10f)
+            .matchesLinearMapping(in1 = 10f, out1 = 12f, in2 = 20f, out2 = 22f)
+    }
+
+    @Test
     fun semantics_appliedForSingleSegment() {
         val result = directionalMotionSpec(Mapping.Identity, listOf(S1 with "One", S2 with "Two"))
 

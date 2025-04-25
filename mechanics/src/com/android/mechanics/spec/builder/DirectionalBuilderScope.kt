@@ -229,6 +229,44 @@ interface DirectionalBuilderScope {
         semantics: List<SemanticValue<*>> = emptyList(),
         mapping: Mapping,
     ): CanBeLastSegment
+
+    /**
+     * Ends the current segment at the [breakpoint] position and defines the next segment to produce
+     * the input value as output (optionally with an offset of [delta]).
+     *
+     * Note: This segment can be used as the last segment in the specification.
+     *
+     * @param breakpoint The breakpoint defining the end of the current segment and the start of the
+     *   next.
+     * @param delta An optional offset to apply to the mapped value to determine the constant value.
+     * @param spring The [SpringParameters] for the transition to this breakpoint.
+     * @param guarantee The animation guarantee for this transition.
+     * @param key A unique [BreakpointKey] for this breakpoint.
+     * @param semantics Updated semantics values to be applied. Must be a subset of the
+     *   [SemanticKey]s used when first creating this builder.
+     */
+    fun identity(
+        breakpoint: Float,
+        delta: Float = 0f,
+        spring: SpringParameters = defaultSpring,
+        guarantee: Guarantee = Guarantee.None,
+        key: BreakpointKey = BreakpointKey(),
+        semantics: List<SemanticValue<*>> = emptyList(),
+    ): CanBeLastSegment {
+        return if (delta == 0f) {
+            mapping(breakpoint, spring, guarantee, key, semantics, Mapping.Identity)
+        } else {
+            fractionalInput(
+                breakpoint,
+                fraction = 1f,
+                from = breakpoint + delta,
+                spring = spring,
+                guarantee = guarantee,
+                key = key,
+                semantics = semantics,
+            )
+        }
+    }
 }
 
 /** Marker interface to indicate that a segment can be the last one in a [DirectionalMotionSpec]. */
