@@ -31,6 +31,10 @@ import com.android.mechanics.spring.SpringParameters
  * Device / scheme specific context for building motion specs.
  *
  * See go/motion-system.
+ *
+ * @see rememberMotionBuilderContext for Compose
+ * @see standardViewMotionBuilderContext for Views
+ * @see expressiveViewMotionBuilderContext for Views
  */
 interface MotionBuilderContext : Density {
     /**
