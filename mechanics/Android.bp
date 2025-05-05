@@ -17,13 +17,6 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-filegroup {
-    name: "mechanics-srcs",
-    srcs: [
-        "src/**/*.kt",
-    ],
-}
-
 android_library {
     name: "mechanics",
     manifest: "AndroidManifest.xml",
@@ -36,7 +29,7 @@ android_library {
         "androidx.compose.foundation_foundation-layout",
     ],
     srcs: [
-        ":mechanics-srcs",
+        "src/**/*.kt",
     ],
     kotlincflags: ["-Xjvm-default=all"],
 }

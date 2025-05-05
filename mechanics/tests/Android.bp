@@ -25,23 +25,15 @@ android_test {
 
     srcs: [
         "src/**/*.kt",
-
-        // TODO(b/240432457): Depend on mechanics directly
-        ":mechanics-srcs",
     ],
 
     static_libs: [
-        // ":mechanics" dependencies
-        "androidx.compose.runtime_runtime",
-        "androidx.compose.material3_material3",
-        "androidx.compose.ui_ui-util",
-        "androidx.compose.foundation_foundation-layout",
-
-        // ":mechanics_tests" dependencies
+        "//frameworks/libs/systemui/mechanics:mechanics",
         "//frameworks/libs/systemui/mechanics:mechanics-testing",
-        "androidx.compose.animation_animation-core",
         "platform-test-annotations",
         "PlatformMotionTestingCompose",
+        "androidx.compose.runtime_runtime",
+        "androidx.compose.animation_animation-core",
         "androidx.compose.ui_ui-test-junit4",
         "androidx.compose.ui_ui-test-manifest",
         "androidx.test.runner",
@@ -49,6 +41,9 @@ android_test {
         "kotlin-test",
         "testables",
         "truth",
+    ],
+    associates: [
+        "mechanics",
     ],
     asset_dirs: ["goldens"],
     kotlincflags: ["-Xjvm-default=all"],
