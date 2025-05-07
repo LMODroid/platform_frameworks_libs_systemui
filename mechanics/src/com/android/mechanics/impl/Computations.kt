@@ -435,6 +435,7 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
                     var guaranteeState = lastGuaranteeState
                     var springState = lastSpringState
                     var springParameters = lastAnimation.springParameters
+                    var hasJumped = false
 
                     var segmentIndex = sourceIndex
                     while (segmentIndex != targetIndex) {
@@ -504,6 +505,7 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
                                     "  after: $afterBreakpoint (mapping: $mappingAfter)",
                             )
                         }
+                        hasJumped = hasJumped || delta != 0f
 
                         if (deltaIsFinite) {
                             springState = springState.nudge(displacementDelta = -delta)
@@ -528,7 +530,7 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
                             }
                     }
 
-                    if (springState.displacement != 0f) {
+                    if (hasJumped) {
                         springState = springState.nudge(velocityDelta = directMappedVelocity)
                     }
 

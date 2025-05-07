@@ -195,10 +195,36 @@ class MotionValueTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Def
             spec =
                 specBuilder {
                     fractionalInputFromCurrent(breakpoint = 10f, fraction = 1f, delta = 20f)
-                    constantValue(breakpoint = 20f, value = 40f)
+                    constantValueFromCurrent(breakpoint = 20f)
                 }
         ) {
             animateValueTo(21f, changePerFrame = 3f)
+            awaitStable()
+        }
+
+    @Test
+    fun segmentChange_appliesOutputVelocity_velocityNotAddedOnContinuousSegment() =
+        motion.goldenTest(
+            spec =
+                specBuilder {
+                    fractionalInputFromCurrent(breakpoint = 10f, fraction = 5f, delta = 5f)
+                    constantValueFromCurrent(breakpoint = 20f)
+                }
+        ) {
+            animateValueTo(30f, changePerFrame = 3f)
+            awaitStable()
+        }
+
+    @Test
+    fun segmentChange_appliesOutputVelocity_velocityAddedOnDiscontinuousSegment() =
+        motion.goldenTest(
+            spec =
+                specBuilder {
+                    fractionalInputFromCurrent(breakpoint = 10f, fraction = 5f, delta = 5f)
+                    constantValueFromCurrent(breakpoint = 20f, delta = -5f)
+                }
+        ) {
+            animateValueTo(30f, changePerFrame = 3f)
             awaitStable()
         }
 
