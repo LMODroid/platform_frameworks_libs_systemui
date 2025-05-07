@@ -25,6 +25,8 @@ android_library {
         "src/**/*.kt",
     ],
     static_libs: [
+        "PlatformComposeCore",
+        "PlatformComposeSceneTransitionLayout",
         "//frameworks/libs/systemui/mechanics:mechanics",
         "platform-test-annotations",
         "PlatformMotionTestingCompose",
