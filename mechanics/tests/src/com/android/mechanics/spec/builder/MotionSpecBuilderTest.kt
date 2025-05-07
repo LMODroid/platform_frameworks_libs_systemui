@@ -437,4 +437,32 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
             .containsExactly("initial", "initial", "second", "second")
             .inOrder()
     }
+
+    @Test
+    fun effect_modifyMaxLimitSemantics() {
+        val semanticKey = SemanticKey<String>("foo")
+        val effect =
+            object : Effect {
+                override fun EffectApplyScope.createSpec() {
+                    unidirectional(
+                        Mapping.One,
+                        semantics = listOf(SemanticValue(semanticKey, "initial")),
+                    )
+                    maxLimitSemantics = listOf(SemanticValue(semanticKey, "maxLimit"))
+                }
+            }
+
+        val result =
+            motionSpec(baseMapping = Mapping.Zero, defaultSpring = spatial.default) {
+                val effect1 = between(1f, 2f, effect)
+                after(effect1, FixedValue(2f))
+            }
+
+        assertThat(result)
+            .maxDirection()
+            .semantics()
+            .withKey(semanticKey)
+            .containsExactly("initial", "initial", "maxLimit")
+            .inOrder()
+    }
 }

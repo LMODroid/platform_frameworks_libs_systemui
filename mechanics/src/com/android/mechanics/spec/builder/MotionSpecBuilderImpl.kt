@@ -99,6 +99,7 @@ internal class MotionSpecBuilderImpl(
             maxLimitKey = key
             maxLimitSpring = spring
             maxLimitGuarantee = guarantee
+            maxLimitSemantics = emptyList()
         }
 
         applyEffect(lastDefinition)
