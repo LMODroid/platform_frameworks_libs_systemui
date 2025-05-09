@@ -16,6 +16,7 @@
 
 package com.android.mechanics.spec
 
+import androidx.compose.ui.util.fastIsFinite
 import com.android.mechanics.spring.SpringParameters
 
 /**
@@ -42,6 +43,11 @@ class BreakpointKey(val debugLabel: String? = null, val identity: Any = Object()
         return "BreakpointKey(${debugLabel ?: ""}" +
             "@${System.identityHashCode(identity).toString(16).padStart(8,'0')})"
     }
+
+    internal companion object {
+        val MinLimit = BreakpointKey("built-in::min")
+        val MaxLimit = BreakpointKey("built-in::max")
+    }
 }
 
 /**
@@ -66,11 +72,20 @@ data class Breakpoint(
     val spring: SpringParameters,
     val guarantee: Guarantee,
 ) : Comparable<Breakpoint> {
+
+    init {
+        when (key) {
+            BreakpointKey.MinLimit -> require(position == Float.NEGATIVE_INFINITY)
+            BreakpointKey.MaxLimit -> require(position == Float.POSITIVE_INFINITY)
+            else -> require(position.fastIsFinite())
+        }
+    }
+
     companion object {
         /** First breakpoint of each spec. */
         val minLimit =
             Breakpoint(
-                BreakpointKey("built-in::min"),
+                BreakpointKey.MinLimit,
                 Float.NEGATIVE_INFINITY,
                 SpringParameters.Snap,
                 Guarantee.None,
@@ -79,11 +94,24 @@ data class Breakpoint(
         /** Last breakpoint of each spec. */
         val maxLimit =
             Breakpoint(
-                BreakpointKey("built-in::max"),
+                BreakpointKey.MaxLimit,
                 Float.POSITIVE_INFINITY,
                 SpringParameters.Snap,
                 Guarantee.None,
             )
+
+        internal fun create(
+            breakpointKey: BreakpointKey,
+            breakpointPosition: Float,
+            springSpec: SpringParameters,
+            guarantee: Guarantee,
+        ): Breakpoint {
+            return when (breakpointKey) {
+                BreakpointKey.MinLimit -> minLimit
+                BreakpointKey.MaxLimit -> maxLimit
+                else -> Breakpoint(breakpointKey, breakpointPosition, springSpec, guarantee)
+            }
+        }
     }
 
     override fun compareTo(other: Breakpoint): Int {
