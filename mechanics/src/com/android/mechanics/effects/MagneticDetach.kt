@@ -54,7 +54,7 @@ class MagneticDetach(
     private val attachScale: Float = Defaults.AttachDetachScale * (attachPosition / detachPosition),
     private val detachSpring: SpringParameters = Defaults.Spring,
     private val attachSpring: SpringParameters = Defaults.Spring,
-) : Effect {
+) : Effect.PlaceableAfter, Effect.PlaceableBefore {
 
     init {
         require(attachPosition <= detachPosition)
@@ -65,16 +65,20 @@ class MagneticDetach(
         Detached,
     }
 
-    override fun MotionBuilderContext.measure(effectPlacement: EffectPlacement): Float {
-        return detachPosition.toPx() * effectPlacement.directionSign
+    override fun MotionBuilderContext.intrinsicSize(): Float {
+        return detachPosition.toPx()
     }
 
-    override fun EffectApplyScope.createSpec() {
-        val startPos = minLimit
-        val reattachPos = startPos + attachPosition.toPx()
-        val detachPos = maxLimit
-        val startValue = baseValue(startPos)
-        val detachValue = baseValue(detachPos)
+    override fun EffectApplyScope.createSpec(
+        minLimit: Float,
+        minLimitKey: BreakpointKey,
+        maxLimit: Float,
+        maxLimitKey: BreakpointKey,
+        placement: EffectPlacement,
+    ) {
+        val reattachPos = minLimit + attachPosition.toPx()
+        val startValue = baseValue(minLimit)
+        val detachValue = baseValue(maxLimit)
         val reattachValue = baseValue(reattachPos)
 
         val scaledDetachValue = startValue + (detachValue - startValue) * detachScale
@@ -83,15 +87,14 @@ class MagneticDetach(
         val attachKey = BreakpointKey("attach")
 
         forward(
-            initialMapping = Mapping.Linear(startPos, startValue, detachPos, scaledDetachValue),
+            initialMapping = Mapping.Linear(minLimit, startValue, maxLimit, scaledDetachValue),
             semantics = listOf(semanticState with State.Attached),
         ) {
-            maxLimitSpring = detachSpring
-            maxLimitSemantics = listOf(semanticState with State.Detached)
+            after(spring = detachSpring, semantics = listOf(semanticState with State.Detached))
         }
 
         backward(
-            initialMapping = Mapping.Linear(startPos, startValue, reattachPos, scaledReattachValue),
+            initialMapping = Mapping.Linear(minLimit, startValue, reattachPos, scaledReattachValue),
             semantics = listOf(semanticState with State.Attached),
         ) {
             mapping(
@@ -125,10 +128,10 @@ class MagneticDetach(
 
                 val tweakedMapping = Mapping { input ->
                     if (input <= pivotPos) {
-                        val t = (input - startPos) / (pivotPos - startPos)
+                        val t = (input - minLimit) / (pivotPos - minLimit)
                         lerp(startValue, pivotValue, t)
                     } else {
-                        val t = (input - pivotPos) / (detachPos - pivotPos)
+                        val t = (input - pivotPos) / (maxLimit - pivotPos)
                         lerp(pivotValue, scaledDetachValue, t)
                     }
                 }
@@ -139,13 +142,11 @@ class MagneticDetach(
         }
     }
 
-    companion object {
-        object Defaults {
-            val AttachDetachState = SemanticKey<State>()
-            val AttachDetachScale = .3f
-            val DetachPosition = 80.dp
-            val AttachPosition = 40.dp
-            val Spring = SpringParameters(stiffness = 800f, dampingRatio = 0.95f)
-        }
+    object Defaults {
+        val AttachDetachState = SemanticKey<State>()
+        val AttachDetachScale = .3f
+        val DetachPosition = 80.dp
+        val AttachPosition = 40.dp
+        val Spring = SpringParameters(stiffness = 800f, dampingRatio = 0.95f)
     }
 }

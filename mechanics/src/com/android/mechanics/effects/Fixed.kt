@@ -16,6 +16,7 @@
 
 package com.android.mechanics.effects
 
+import com.android.mechanics.spec.BreakpointKey
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.builder.Effect
 import com.android.mechanics.spec.builder.EffectApplyScope
@@ -32,25 +33,23 @@ val MotionSpecBuilderScope.one: FixedValue
     get() = FixedValue.One
 
 /** Produces a fixed [value]. */
-open class FixedValue(val value: Float) : Effect {
+class FixedValue(val value: Float) :
+    Effect.PlaceableAfter, Effect.PlaceableBefore, Effect.PlaceableBetween {
 
-    override fun EffectApplyScope.createSpec() {
+    override fun MotionBuilderContext.intrinsicSize(): Float = Float.NaN
+
+    override fun EffectApplyScope.createSpec(
+        minLimit: Float,
+        minLimitKey: BreakpointKey,
+        maxLimit: Float,
+        maxLimitKey: BreakpointKey,
+        placement: EffectPlacement,
+    ) {
         return unidirectional(Mapping.Fixed(value))
     }
 
     companion object {
         val Zero = FixedValue(0f)
         val One = FixedValue(1f)
-    }
-}
-
-/** Produces a fixed [value], for a predefined [extent]. */
-class FixedValueWithExtent(value: Float, private val extent: Float) : FixedValue(value) {
-    init {
-        require(extent > 0)
-    }
-
-    override fun MotionBuilderContext.measure(effectPlacement: EffectPlacement): Float {
-        return extent * effectPlacement.directionSign
     }
 }

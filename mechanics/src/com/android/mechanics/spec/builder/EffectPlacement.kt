@@ -44,7 +44,6 @@ value class EffectPlacement internal constructor(val value: Long) {
 
     init {
         require(start.isFinite())
-        require(!end.isNaN())
     }
 
     val start: Float
@@ -53,11 +52,26 @@ value class EffectPlacement internal constructor(val value: Long) {
     val end: Float
         get() = unpackFloat2(value)
 
-    val isForward: Boolean
-        get() = end >= start
+    val type: EffectPlacemenType
+        get() {
+            return when {
+                end.isNaN() -> EffectPlacemenType.At
+                end == Float.NEGATIVE_INFINITY -> EffectPlacemenType.Before
+                end == Float.POSITIVE_INFINITY -> EffectPlacemenType.After
+                else -> EffectPlacemenType.Between
+            }
+        }
 
-    val directionSign: Float
-        get() = if (isForward) 1f else -1f
+    val isForward: Boolean
+        get() {
+
+            return when (type) {
+                EffectPlacemenType.At -> true
+                EffectPlacemenType.Before -> false
+                EffectPlacemenType.After -> true
+                EffectPlacemenType.Between -> end >= start
+            }
+        }
 
     internal val sortOrder: Float
         get() = if (isForward) start.nextUp() else start.nextDown()
@@ -73,10 +87,19 @@ value class EffectPlacement internal constructor(val value: Long) {
     }
 
     companion object {
+        fun at(position: Float) = EffectPlacement(packFloats(position, Float.NaN))
+
         fun after(position: Float) = EffectPlacement(packFloats(position, Float.POSITIVE_INFINITY))
 
         fun before(position: Float) = EffectPlacement(packFloats(position, Float.NEGATIVE_INFINITY))
 
         fun between(start: Float, end: Float) = EffectPlacement(packFloats(start, end))
     }
+}
+
+enum class EffectPlacemenType {
+    At,
+    Before,
+    After,
+    Between,
 }

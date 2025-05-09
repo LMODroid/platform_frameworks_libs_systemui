@@ -135,28 +135,28 @@ interface MotionSpecBuilderScope : MotionBuilderContext {
      * If `start > end`, the effect will be reversed when applied. The [effect] can overrule the
      * `end` position with [Effect.measure].
      */
-    fun between(start: Float, end: Float, effect: Effect): PlacedEffect
+    fun between(start: Float, end: Float, effect: Effect.PlaceableBetween): PlacedEffect
 
     /**
      * Places [effect] at position, extending backwards.
      *
      * The effect will be reversed when applied.
      */
-    fun before(position: Float, effect: Effect): PlacedEffect
+    fun before(position: Float, effect: Effect.PlaceableBefore): PlacedEffect
 
     /** Places [effect] at position, extending forward. */
-    fun after(position: Float, effect: Effect): PlacedEffect
+    fun after(position: Float, effect: Effect.PlaceableAfter): PlacedEffect
 
     /**
      * Places [effect] at [otherEffect]'s min position, extending backwards.
      *
      * The effect will be reversed when applied.
      */
-    fun before(otherEffect: PlacedEffect, effect: Effect): PlacedEffect
+    fun before(otherEffect: PlacedEffect, effect: Effect.PlaceableBefore): PlacedEffect
 
     /** Places [effect] after the end of [otherEffect], extending forward. */
-    fun after(otherEffect: PlacedEffect, effect: Effect): PlacedEffect
+    fun after(otherEffect: PlacedEffect, effect: Effect.PlaceableAfter): PlacedEffect
 
-    /** Places [effect] at position, extending forward. */
-    fun at(position: Float, effect: Effect): PlacedEffect
+    /** Places [effect] at position. */
+    fun at(position: Float, effect: Effect.PlaceableAt): PlacedEffect
 }

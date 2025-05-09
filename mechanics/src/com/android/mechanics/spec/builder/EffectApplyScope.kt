@@ -16,7 +16,6 @@
 
 package com.android.mechanics.spec.builder
 
-import com.android.mechanics.spec.BreakpointKey
 import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.OnChangeSegmentHandler
@@ -38,26 +37,6 @@ interface EffectApplyScope : MotionBuilderContext {
     /** Mapping used outside of the defined effects. */
     val baseMapping: Mapping
 
-    /** This effects `minLimit` position. */
-    val minLimit: Float
-    /** This effects `minLimit` [BreakpointKey].* */
-    val minLimitKey: BreakpointKey
-    /** [Guarantee] of the `minLimit` breakpoint. */
-    var minLimitGuarantee: Guarantee
-    /** [SpringParameters] of the `minLimit` breakpoint. */
-    var minLimitSpring: SpringParameters
-
-    /** This effects `maxLimit` position. */
-    val maxLimit: Float
-    /** This effects `maxLimit` [BreakpointKey].* */
-    val maxLimitKey: BreakpointKey
-    /** [Guarantee] of the `maxLimit` breakpoint. */
-    var maxLimitGuarantee: Guarantee
-    /** [SpringParameters] of the `maxLimit` breakpoint. */
-    var maxLimitSpring: SpringParameters
-    /** Semantics to be applied at the `maxLimit` breakpoint. */
-    var maxLimitSemantics: List<SemanticValue<*>>
-
     /**
      * Defines spec simultaneously for both, the min and max direction.
      *
@@ -78,7 +57,7 @@ interface EffectApplyScope : MotionBuilderContext {
     fun unidirectional(
         initialMapping: Mapping,
         semantics: List<SemanticValue<*>> = emptyList(),
-        init: DirectionalBuilderScope.() -> Unit,
+        init: DirectionalEffectBuilderScope.() -> Unit,
     )
 
     /**
@@ -118,7 +97,7 @@ interface EffectApplyScope : MotionBuilderContext {
     fun forward(
         initialMapping: Mapping,
         semantics: List<SemanticValue<*>> = emptyList(),
-        init: DirectionalBuilderScope.() -> Unit,
+        init: DirectionalEffectBuilderScope.() -> Unit,
     )
 
     /**
@@ -158,7 +137,7 @@ interface EffectApplyScope : MotionBuilderContext {
     fun backward(
         initialMapping: Mapping,
         semantics: List<SemanticValue<*>> = emptyList(),
-        init: DirectionalBuilderScope.() -> Unit,
+        init: DirectionalEffectBuilderScope.() -> Unit,
     )
 
     /**
@@ -183,4 +162,21 @@ interface EffectApplyScope : MotionBuilderContext {
 
     /** Returns the value of [baseValue] at [position]. */
     fun baseValue(position: Float): Float
+}
+
+interface DirectionalEffectBuilderScope : DirectionalBuilderScope {
+
+    fun before(
+        spring: SpringParameters? = null,
+        guarantee: Guarantee? = null,
+        semantics: List<SemanticValue<*>>? = null,
+        mapping: Mapping? = null,
+    )
+
+    fun after(
+        spring: SpringParameters? = null,
+        guarantee: Guarantee? = null,
+        semantics: List<SemanticValue<*>>? = null,
+        mapping: Mapping? = null,
+    )
 }

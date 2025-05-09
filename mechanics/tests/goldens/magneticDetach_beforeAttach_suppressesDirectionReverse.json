@@ -99,20 +99,20 @@
           "dampingRatio": 1
         },
         {
-          "stiffness": 800,
-          "dampingRatio": 0.95
+          "stiffness": 700,
+          "dampingRatio": 0.9
         },
         {
-          "stiffness": 800,
-          "dampingRatio": 0.95
+          "stiffness": 700,
+          "dampingRatio": 0.9
         },
         {
-          "stiffness": 800,
-          "dampingRatio": 0.95
+          "stiffness": 700,
+          "dampingRatio": 0.9
         },
         {
-          "stiffness": 800,
-          "dampingRatio": 0.95
+          "stiffness": 700,
+          "dampingRatio": 0.9
         },
         {
           "stiffness": 100000,

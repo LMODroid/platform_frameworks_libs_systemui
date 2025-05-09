@@ -16,41 +16,48 @@
 
 package com.android.mechanics.spec.builder
 
+import com.android.mechanics.spec.BreakpointKey
+
 /**
  * Blueprint for a reusable behavior in a [MotionSpec].
  *
  * [Effect] instances are reusable for building multiple
  */
-interface Effect {
-    /**
-     * Defines the intrinsic length of the effect.
-     *
-     * The return value takes precedent over the [effectPlacement]. By default, the result is
-     * derived from the [effectPlacement].
-     *
-     * Returning `Float.POSITIVE/NEGATIVE_INFINITY` will cause the effect to extend to the start of
-     * the next effect, or the boundary of the effect.
-     */
-    fun MotionBuilderContext.measure(effectPlacement: EffectPlacement): Float {
-        return if (effectPlacement.end.isFinite()) {
-            effectPlacement.end - effectPlacement.start
-        } else {
-            effectPlacement.end
-        }
-    }
+sealed interface Effect {
 
     /**
      * Applies the effect to the motion spec.
      *
-     * The boundaries of the effect are defined by the [EffectApplyScope.minLimit] and
-     * [EffectApplyScope.maxLimit] properties, and extend in both, the min and max direction by the
-     * same amount.
+     * The boundaries of the effect are defined by the [minLimit] and [maxLimit] properties, and
+     * extend in both, the min and max direction by the same amount.
      *
      * Implementations must invoke either [EffectApplyScope.unidirectional] or both,
      * [EffectApplyScope.forward] and [EffectApplyScope.backward]. The motion spec builder will
      * throw if neither is called.
      */
-    fun EffectApplyScope.createSpec()
+    fun EffectApplyScope.createSpec(
+        minLimit: Float,
+        minLimitKey: BreakpointKey,
+        maxLimit: Float,
+        maxLimitKey: BreakpointKey,
+        placement: EffectPlacement,
+    )
+
+    interface PlaceableAfter : Effect {
+        fun MotionBuilderContext.intrinsicSize(): Float
+    }
+
+    interface PlaceableBefore : Effect {
+        fun MotionBuilderContext.intrinsicSize(): Float
+    }
+
+    interface PlaceableBetween : Effect
+
+    interface PlaceableAt : Effect {
+        fun MotionBuilderContext.minExtent(): Float
+
+        fun MotionBuilderContext.maxExtent(): Float
+    }
 }
 
 /**

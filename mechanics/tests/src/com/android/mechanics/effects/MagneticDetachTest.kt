@@ -17,8 +17,8 @@
 package com.android.mechanics.effects
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.android.mechanics.effects.MagneticDetach.Companion.Defaults.AttachPosition
-import com.android.mechanics.effects.MagneticDetach.Companion.Defaults.DetachPosition
+import com.android.mechanics.effects.MagneticDetach.Defaults.AttachPosition
+import com.android.mechanics.effects.MagneticDetach.Defaults.DetachPosition
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.builder.MotionBuilderContext
@@ -44,7 +44,7 @@ class MagneticDetachTest : MotionBuilderContext by FakeMotionSpecBuilderContext.
 
     @Test
     fun magneticDetach_matchesSpec() {
-        val underTests = spatialMotionSpec { at(10f, MagneticDetach()) }
+        val underTests = spatialMotionSpec { after(10f, MagneticDetach()) }
 
         assertThat(underTests).maxDirection().breakpoints().positions().containsExactly(10f, 90f)
         assertThat(underTests)
@@ -56,7 +56,7 @@ class MagneticDetachTest : MotionBuilderContext by FakeMotionSpecBuilderContext.
 
     @Test
     fun magneticDetach_detach_animatesDetach() {
-        motion.goldenTest(spatialMotionSpec { at(10f, MagneticDetach()) }) {
+        motion.goldenTest(spatialMotionSpec { after(10f, MagneticDetach()) }) {
             animateValueTo(DetachPosition.toPx() + 10f, changePerFrame = 5f)
             awaitStable()
         }
@@ -66,7 +66,7 @@ class MagneticDetachTest : MotionBuilderContext by FakeMotionSpecBuilderContext.
     fun magneticDetach_attach_snapsToOrigin() {
         val effect = MagneticDetach()
         motion.goldenTest(
-            spatialMotionSpec { at(10f, effect) },
+            spatialMotionSpec { after(10f, effect) },
             initialValue = DetachPosition.toPx() + 20f,
             initialDirection = InputDirection.Min,
         ) {
@@ -78,7 +78,7 @@ class MagneticDetachTest : MotionBuilderContext by FakeMotionSpecBuilderContext.
     @Test
     fun magneticDetach_beforeAttach_suppressesDirectionReverse() {
         motion.goldenTest(
-            spatialMotionSpec { at(10f, MagneticDetach()) },
+            spatialMotionSpec { after(10f, MagneticDetach()) },
             initialValue = DetachPosition.toPx() + 20f,
             initialDirection = InputDirection.Min,
         ) {
@@ -91,7 +91,7 @@ class MagneticDetachTest : MotionBuilderContext by FakeMotionSpecBuilderContext.
     @Test
     fun magneticDetach_afterAttach_detachesAgain() {
         motion.goldenTest(
-            spatialMotionSpec { at(10f, MagneticDetach()) },
+            spatialMotionSpec { after(10f, MagneticDetach()) },
             initialValue = DetachPosition.toPx() + 20f,
             initialDirection = InputDirection.Min,
         ) {
@@ -104,7 +104,7 @@ class MagneticDetachTest : MotionBuilderContext by FakeMotionSpecBuilderContext.
 
     @Test
     fun magneticDetach_beforeDetach_suppressesDirectionReverse() {
-        motion.goldenTest(spatialMotionSpec { at(10f, MagneticDetach()) }) {
+        motion.goldenTest(spatialMotionSpec { after(10f, MagneticDetach()) }) {
             animateValueTo(DetachPosition.toPx() - 9f)
             animateValueTo(0f)
             awaitStable()
@@ -115,7 +115,7 @@ class MagneticDetachTest : MotionBuilderContext by FakeMotionSpecBuilderContext.
     fun magneticDetach_placedWithDifferentBaseMapping() {
         motion.goldenTest(
             spatialMotionSpec(baseMapping = Mapping.Linear(factor = -10f)) {
-                at(-10f, MagneticDetach())
+                after(-10f, MagneticDetach())
             },
             initialValue = -10f,
         ) {

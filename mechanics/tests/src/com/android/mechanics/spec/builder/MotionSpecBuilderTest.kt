@@ -18,7 +18,6 @@ package com.android.mechanics.spec.builder
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.mechanics.effects.FixedValue
-import com.android.mechanics.effects.FixedValueWithExtent
 import com.android.mechanics.spec.BreakpointKey
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.SemanticKey
@@ -33,6 +32,11 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Default {
+
+    // placement & ordering
+    // placement types
+    // placement issues
+    // before & after mapping, springs etc
 
     @Test
     fun motionSpec_empty_usesBaseMapping() {
@@ -114,7 +118,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     @Test
     fun placement_overlapping_throws() {
         val exception =
-            assertFailsWith<IllegalStateException> {
+            assertFailsWith<IllegalArgumentException> {
                 motionSpec(baseMapping = Mapping.Zero, defaultSpring = spatial.default) {
                     between(1f, 2f, FixedValue(1f))
                     between(1.5f, 2.5f, FixedValue(2f))
@@ -126,7 +130,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     @Test
     fun placement_embedded_throws() {
         val exception =
-            assertFailsWith<IllegalStateException> {
+            assertFailsWith<IllegalArgumentException> {
                 motionSpec(baseMapping = Mapping.Zero, defaultSpring = spatial.default) {
                     between(1f, 3f, FixedValue(1f))
                     between(1.5f, 2.5f, FixedValue(2f))
@@ -162,7 +166,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     @Test
     fun placement_subsequent_bothExtend_throws() {
         val exception =
-            assertFailsWith<IllegalStateException> {
+            assertFailsWith<IllegalArgumentException> {
                 motionSpec(baseMapping = Mapping.Zero, defaultSpring = spatial.default) {
                     after(1f, FixedValue(1f))
                     before(3f, FixedValue(2f))
@@ -191,28 +195,6 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
 
         assertThat(result).bothDirections().fixedMappingsMatch(0f, 1f, 0f)
         assertThat(result).bothDirections().breakpointsPositionsMatch(-1f, 1f)
-    }
-
-    @Test
-    fun placement_withFixedExtent_between_effectMeasureTakesPrecedent() {
-        val result =
-            motionSpec(baseMapping = Mapping.Zero, defaultSpring = spatial.default) {
-                between(1f, 2f, FixedValueWithExtent(1f, 10f))
-            }
-
-        assertThat(result).bothDirections().fixedMappingsMatch(0f, 1f, 0f)
-        assertThat(result).bothDirections().breakpointsPositionsMatch(1f, 11f)
-    }
-
-    @Test
-    fun placement_withFixedExtent_betweenReverse_effectMeasureTakesPrecedent() {
-        val result =
-            motionSpec(baseMapping = Mapping.Zero, defaultSpring = spatial.default) {
-                between(2f, 1f, FixedValueWithExtent(1f, 10f))
-            }
-
-        assertThat(result).bothDirections().fixedMappingsMatch(0f, 1f, 0f)
-        assertThat(result).bothDirections().breakpointsPositionsMatch(-8f, 2f)
     }
 
     @Test
@@ -258,10 +240,10 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
 
     @Test
     fun placement_relative_overlappingChain_throws() {
-        assertFailsWith<IllegalStateException> {
+        assertFailsWith<IllegalArgumentException> {
             motionSpec(baseMapping = Mapping.Zero, defaultSpring = spatial.default) {
-                val rootEffect = after(1f, FixedValueWithExtent(-1f, 2f))
-                val left = before(rootEffect, FixedValueWithExtent(-2f, 3f))
+                val rootEffect = between(1f, 3f, FixedValue(-1f))
+                val left = before(rootEffect, FixedValue(-2f))
                 after(left, FixedValue(-3f))
             }
         }
@@ -270,7 +252,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     @Test
     fun effect_differentReverseSpec() {
         val effect =
-            object : Effect {
+            object : SimpleEffect() {
                 override fun EffectApplyScope.createSpec() {
                     forward(Mapping.One)
                     backward(Mapping.Two)
@@ -292,8 +274,14 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     @Test
     fun effect_separateReverseSpec_withBuilder_canProduceDifferentSegmentCount() {
         val effect =
-            object : Effect {
-                override fun EffectApplyScope.createSpec() {
+            object : Effect.PlaceableBetween {
+                override fun EffectApplyScope.createSpec(
+                    minLimit: Float,
+                    minLimitKey: BreakpointKey,
+                    maxLimit: Float,
+                    maxLimitKey: BreakpointKey,
+                    placement: EffectPlacement,
+                ) {
                     forward(Mapping.One) { constantValue(breakpoint = minLimit + 0.5f, 10f) }
                     backward(Mapping.Two)
                 }
@@ -314,7 +302,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     @Test
     fun effect_identicalBackward_withBuilder_producesSameSpecInBothDirections() {
         val effect =
-            object : Effect {
+            object : SimpleEffect() {
                 override fun EffectApplyScope.createSpec() {
                     val key = BreakpointKey()
                     unidirectional(Mapping.One) {
@@ -335,7 +323,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     @Test
     fun effect_setBreakpointBeforeMinLimit_throws() {
         val rogueEffect =
-            object : Effect {
+            object : SimpleEffect() {
                 override fun EffectApplyScope.createSpec() {
                     unidirectional(Mapping.One) {
                         this.constantValue(breakpoint = 0.5f, value = 0f)
@@ -353,7 +341,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     @Test
     fun effect_setBreakpointAfterMinLimit_throws() {
         val rogueEffect =
-            object : Effect {
+            object : SimpleEffect() {
                 override fun EffectApplyScope.createSpec() {
                     unidirectional(Mapping.One) {
                         this.constantValue(breakpoint = 2.5f, value = 0f)
@@ -372,10 +360,9 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     fun effect_modifyMinLimitSpring() {
         val spring = SpringParameters(stiffness = 1f, dampingRatio = 2f)
         val effect =
-            object : Effect {
+            object : SimpleEffect() {
                 override fun EffectApplyScope.createSpec() {
-                    minLimitSpring = spring
-                    unidirectional(Mapping.One)
+                    unidirectional(Mapping.One) { before(spring = spring) }
                 }
             }
 
@@ -391,10 +378,9 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     fun effect_modifyMaxLimitSpring() {
         val spring = SpringParameters(stiffness = 1f, dampingRatio = 2f)
         val effect =
-            object : Effect {
+            object : SimpleEffect() {
                 override fun EffectApplyScope.createSpec() {
-                    maxLimitSpring = spring
-                    unidirectional(Mapping.One)
+                    unidirectional(Mapping.One) { after(spring = spring) }
                 }
             }
 
@@ -410,7 +396,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     fun effect_semantics_applyToFullInputRange() {
         val semanticKey = SemanticKey<String>("foo")
         val effect =
-            object : Effect {
+            object : SimpleEffect() {
                 override fun EffectApplyScope.createSpec() {
                     unidirectional(
                         Mapping.One,
@@ -442,13 +428,14 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     fun effect_modifyMaxLimitSemantics() {
         val semanticKey = SemanticKey<String>("foo")
         val effect =
-            object : Effect {
+            object : SimpleEffect() {
                 override fun EffectApplyScope.createSpec() {
                     unidirectional(
                         Mapping.One,
                         semantics = listOf(SemanticValue(semanticKey, "initial")),
-                    )
-                    maxLimitSemantics = listOf(SemanticValue(semanticKey, "maxLimit"))
+                    ) {
+                        after(semantics = listOf(SemanticValue(semanticKey, "maxLimit")))
+                    }
                 }
             }
 
@@ -464,5 +451,34 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
             .withKey(semanticKey)
             .containsExactly("initial", "initial", "maxLimit")
             .inOrder()
+    }
+
+    private abstract class SimpleEffect : Effect.PlaceableBetween {
+        override fun EffectApplyScope.createSpec(
+            minLimit: Float,
+            minLimitKey: BreakpointKey,
+            maxLimit: Float,
+            maxLimitKey: BreakpointKey,
+            placement: EffectPlacement,
+        ) {
+            createSpec()
+        }
+
+        abstract fun EffectApplyScope.createSpec()
+    }
+
+    private class FixedValueWithExtent(val value: Float, val extent: Float) :
+        Effect.PlaceableAfter, Effect.PlaceableBefore {
+        override fun MotionBuilderContext.intrinsicSize() = extent
+
+        override fun EffectApplyScope.createSpec(
+            minLimit: Float,
+            minLimitKey: BreakpointKey,
+            maxLimit: Float,
+            maxLimitKey: BreakpointKey,
+            placement: EffectPlacement,
+        ) {
+            return unidirectional(Mapping.Fixed(value))
+        }
     }
 }

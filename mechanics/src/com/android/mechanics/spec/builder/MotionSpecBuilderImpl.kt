@@ -17,8 +17,10 @@
 package com.android.mechanics.spec.builder
 
 import androidx.collection.MutableIntIntMap
+import androidx.collection.MutableIntList
 import androidx.collection.MutableIntLongMap
 import androidx.collection.MutableIntObjectMap
+import androidx.collection.MutableLongList
 import androidx.collection.ObjectList
 import androidx.collection.mutableObjectListOf
 import com.android.mechanics.spec.Breakpoint
@@ -34,8 +36,8 @@ import com.android.mechanics.spring.SpringParameters
 internal class MotionSpecBuilderImpl(
     override val baseMapping: Mapping,
     override val defaultSpring: SpringParameters,
-    val resetSpring: SpringParameters,
-    val baseSemantics: List<SemanticValue<*>>,
+    private val resetSpring: SpringParameters,
+    private val baseSemantics: List<SemanticValue<*>>,
     motionBuilderContext: MotionBuilderContext,
 ) : MotionSpecBuilderScope, MotionBuilderContext by motionBuilderContext, EffectApplyScope {
 
@@ -43,11 +45,11 @@ internal class MotionSpecBuilderImpl(
     private val absoluteEffectPlacements = MutableIntLongMap()
     private val relativeEffectPlacements = MutableIntIntMap()
 
-    private lateinit var builders: ObjectList<DirectionalBuilderImpl>
-    private val forwardBuilder: DirectionalBuilderImpl
+    private lateinit var builders: ObjectList<DirectionalEffectBuilderScopeImpl>
+    private val forwardBuilder: DirectionalEffectBuilderScopeImpl
         get() = builders[0]
 
-    private val reverseBuilder: DirectionalBuilderImpl
+    private val reverseBuilder: DirectionalEffectBuilderScopeImpl
         get() = builders[1]
 
     private lateinit var segmentHandlers: MutableMap<SegmentKey, OnChangeSegmentHandler>
@@ -59,50 +61,43 @@ internal class MotionSpecBuilderImpl(
 
         builders =
             mutableObjectListOf(
-                DirectionalBuilderImpl(defaultSpring, baseSemantics),
-                DirectionalBuilderImpl(defaultSpring, baseSemantics),
+                DirectionalEffectBuilderScopeImpl(defaultSpring, baseSemantics),
+                DirectionalEffectBuilderScopeImpl(defaultSpring, baseSemantics),
             )
         segmentHandlers = mutableMapOf()
 
-        val placedEffects = placeEffects()
+        val capacity = placedEffects.size * 2 + 1
+        val sortedEffects = MutableIntList(capacity)
+        val specifiedPlacements = MutablePlacementList(MutableLongList(capacity))
+        val actualPlacements = MutablePlacementList(MutableLongList(capacity))
 
-        check(placedEffects.size >= 2)
+        placeEffects(sortedEffects, specifiedPlacements, actualPlacements)
+        check(sortedEffects.size >= 2)
 
-        with(Breakpoint.minLimit) {
-            minLimit = position
-            minLimitKey = key
-            minLimitSpring = spring
-            minLimitGuarantee = guarantee
-        }
+        var minLimitKey = BreakpointKey.MinLimit
+        lateinit var maxLimitKey: BreakpointKey
 
-        for (i in 0 until placedEffects.size - 1) {
-            val (effect, placement) = placedEffects[i]
-
-            maxLimit = placement.max
+        for (i in 0 until sortedEffects.lastIndex) {
             maxLimitKey = BreakpointKey()
-            maxLimitSpring = defaultSpring
-            maxLimitGuarantee = Guarantee.None
-            maxLimitSemantics = emptyList()
-
-            applyEffect(effect)
-
-            minLimit = maxLimit
+            applyEffect(
+                sortedEffects[i],
+                specifiedPlacements[i],
+                actualPlacements[i],
+                minLimitKey,
+                maxLimitKey,
+            )
             minLimitKey = maxLimitKey
-            minLimitSpring = maxLimitSpring
-            minLimitGuarantee = maxLimitGuarantee
         }
 
-        val (lastDefinition, _) = placedEffects.last()
+        maxLimitKey = BreakpointKey.MaxLimit
 
-        with(Breakpoint.maxLimit) {
-            maxLimit = position
-            maxLimitKey = key
-            maxLimitSpring = spring
-            maxLimitGuarantee = guarantee
-            maxLimitSemantics = emptyList()
-        }
-
-        applyEffect(lastDefinition)
+        applyEffect(
+            sortedEffects.last(),
+            specifiedPlacements.last(),
+            actualPlacements.last(),
+            minLimitKey,
+            maxLimitKey,
+        )
 
         return MotionSpec(
             builders[0].build(),
@@ -112,153 +107,195 @@ internal class MotionSpecBuilderImpl(
         )
     }
 
-    private fun placeEffects(): List<Pair<Effect, EffectPlacement>> {
-        check(absoluteEffectPlacements.isNotEmpty())
-        return buildList {
-            fun placeEffect(placement: EffectPlacement, effect: Effect): EffectPlacement {
-                val extent = with(effect) { measure(placement) }
-                val actualPlacement =
-                    EffectPlacement.between(placement.start, placement.start + extent)
-                add(Pair(effect, actualPlacement))
-                return actualPlacement
-            }
+    private fun placeEffects(
+        sortedEffects: MutableIntList,
+        specifiedPlacements: MutablePlacementList,
+        actualPlacements: MutablePlacementList,
+    ) {
 
-            fun placeRelativeEffects(
-                effect: PlacedEffect,
-                direction: Int,
-                relatedPlacement: EffectPlacement,
-            ) {
-                require(direction == -1 || direction == 1)
+        // To place the effects, do the following
+        // - sort all `absoluteEffectPlacements` in ascending order
+        // - use the sorted absolutely placed effects as seeds. For each of them, do the following:
+        //   - measure the effect
+        //   - recursively walk the relatively effects placed before, tracking the min boundary
+        //     (this requires effects that have a defined extend to the min side)
+        //   - upon reaching the beginning, start placing the effects in the forward direction.
+        //     continue up to the seed effects, t
+        //   - recursively continue placing effects relatively placed afterwards.
 
-                val key = effect.id * direction
-                if (!relativeEffectPlacements.containsKey(key)) return
+        fun appendEffect(
+            effectId: Int,
+            specifiedPlacement: EffectPlacement,
+            measuredPlacement: EffectPlacement,
+        ) {
+            var actualPlacement = measuredPlacement
+            var prependNoPlaceholderEffect = false
 
-                val relativePlacedEffect = PlacedEffect(relativeEffectPlacements[key])
-                val effect = checkNotNull(placedEffects[relativePlacedEffect.id])
+            if (actualPlacements.isEmpty()) {
+                // placing first effect.
+                if (measuredPlacement.min.isFinite()) {
+                    prependNoPlaceholderEffect = true
+                }
+            } else {
 
-                val placement =
-                    if (direction == -1) {
-                        EffectPlacement.before(relatedPlacement.min)
+                val previousPlacement = actualPlacements.last()
+                if (previousPlacement.max.isFinite()) {
+                    // The previous effect has a defined end-point.
+
+                    if (measuredPlacement.min == Float.NEGATIVE_INFINITY) {
+                        // The current effect wants to extend to the end of the previous effect.
+                        require(measuredPlacement.max.isFinite())
+                        actualPlacement =
+                            EffectPlacement.between(previousPlacement.max, measuredPlacement.max)
+                    } else if (measuredPlacement.min > previousPlacement.max) {
+                        // There's a gap between the last and the current effect, will need to
+                        // insert a placeholder
+                        require(measuredPlacement.min.isFinite())
+                        prependNoPlaceholderEffect = true
                     } else {
-                        EffectPlacement.after(relatedPlacement.max)
-                    }
-
-                val actualPlacement = placeEffect(placement, effect)
-                placeRelativeEffects(relativePlacedEffect, direction, actualPlacement)
-            }
-
-            // Start with placing all absolute positioned effects, as well as the relatively
-            // positioned ones.
-            absoluteEffectPlacements.forEach { id, placement ->
-                val effect = checkNotNull(placedEffects[id])
-                val actualPlacement = placeEffect(EffectPlacement(placement), effect)
-                placeRelativeEffects(PlacedEffect(id), 1, actualPlacement)
-                placeRelativeEffects(PlacedEffect(id), -1, actualPlacement)
-            }
-
-            // By now, all effects have been placed. The placements can still be unbounded.
-            check(size == placedEffects.size) { "Some effects were not placed." }
-            // Sort all effects by their ascending placement.
-            sortBy { it.second.sortOrder }
-
-            // In a second pass, do the following:
-            // - update all placements to extend to their neighbor
-            // - verify that no segments overlap
-            // - add `EmptyPlaceholder` effects to ensure the complete input space is covered by
-            //   an effect. This will make adding the effects simpler
-
-            // EmptyPlaceholder will be added to the end of the list, an additional sort at the end
-            // will bring them in line again. This prevents insert operations during the second
-            // pass.
-            val (_, firstPlacement) = first()
-            val (_, lastPlacement) = last()
-
-            for (i in 0 until size - 1) {
-                val (thisDefinition, thisPlacement) = get(i)
-                val (nextDefinition, nextPlacement) = get(i + 1)
-
-                when {
-                    thisPlacement.max == Float.POSITIVE_INFINITY &&
-                        nextPlacement.min == Float.NEGATIVE_INFINITY -> {
-                        throw IllegalStateException(
-                            "Only one of the effects can extend to the  boundary, not both:\n" +
-                                "  this:  $thisPlacement ($thisDefinition)\n" +
-                                "  next:  $nextPlacement ($nextDefinition)\n"
-                        )
-                    }
-                    thisPlacement.max == Float.POSITIVE_INFINITY -> {
-                        val updated = EffectPlacement.between(thisPlacement.min, nextPlacement.min)
-                        set(i, thisDefinition to updated)
-                    }
-
-                    nextPlacement.min == Float.NEGATIVE_INFINITY -> {
-                        val updated = EffectPlacement.between(thisPlacement.max, nextPlacement.max)
-                        set(i + 1, nextDefinition to updated)
-                    }
-
-                    thisPlacement.max < nextPlacement.min -> {
-                        add(
-                            EmptyPlaceholder to
-                                EffectPlacement.between(thisPlacement.max, nextPlacement.min)
-                        )
-                    }
-                    else -> {
-                        check(thisPlacement.max == nextPlacement.min) {
-                            "Effects must not overlap:\n" +
-                                "  this:  $thisPlacement ($thisDefinition)\n" +
-                                "  next:  $nextPlacement ($nextDefinition)\n"
+                        // In all other cases, the previous end has to match the current start.
+                        // In all other cases, effects are overlapping, which is not supported.
+                        require(measuredPlacement.min == previousPlacement.max) {
+                            "Effects are overlapping"
                         }
-                        require(thisPlacement.max.isFinite() && nextPlacement.min.isFinite())
                     }
+                } else {
+                    // The previous effect wants to extend to the beginning of the next effect
+                    assert(previousPlacement.max == Float.POSITIVE_INFINITY)
+
+                    // Therefore the current effect is required to have a defined start-point
+                    require(measuredPlacement.min.isFinite()) {
+                        "Only one of the effects can extend to the  boundary, not both:\n" +
+                            "  this:  $actualPlacement (${placedEffects[effectId]})\n" +
+                            "  previous:  $previousPlacement (${placedEffects[effectId]}])\n"
+                    }
+
+                    actualPlacements[actualPlacements.lastIndex] =
+                        EffectPlacement.between(previousPlacement.min, measuredPlacement.min)
                 }
             }
 
-            if (firstPlacement.min != Float.NEGATIVE_INFINITY) {
-                require(firstPlacement.min.isFinite())
-                add(EmptyPlaceholder to EffectPlacement.before(firstPlacement.min))
+            if (prependNoPlaceholderEffect) {
+                assert(actualPlacement.min.isFinite())
+                // Adding a placeholder that will be skipped, but simplifies the algorithm by
+                // ensuring all effects are back-to-back. The NoEffectPlaceholderId is used to
+
+                sortedEffects.add(NoEffectPlaceholderId)
+                val placeholderPlacement = EffectPlacement.before(actualPlacement.min)
+                specifiedPlacements.add(placeholderPlacement)
+                actualPlacements.add(placeholderPlacement)
             }
 
-            if (lastPlacement.max != Float.POSITIVE_INFINITY) {
-                require(lastPlacement.max.isFinite())
-                add(EmptyPlaceholder to EffectPlacement.after(lastPlacement.max))
+            sortedEffects.add(effectId)
+            specifiedPlacements.add(specifiedPlacement)
+
+            actualPlacements.add(actualPlacement)
+        }
+
+        fun processEffectsPlacedBefore(
+            anchorEffectId: Int,
+            anchorEffectPlacement: EffectPlacement,
+        ) {
+            val beforeEffectKey = -anchorEffectId
+            if (relativeEffectPlacements.containsKey(beforeEffectKey)) {
+                val effectId = relativeEffectPlacements[beforeEffectKey]
+                val effect = checkNotNull(placedEffects[effectId])
+
+                require(anchorEffectPlacement.min.isFinite())
+                val specifiedPlacement = EffectPlacement.before(anchorEffectPlacement.min)
+
+                val measuredPlacement = measureEffect(effect, specifiedPlacement)
+                processEffectsPlacedBefore(effectId, measuredPlacement)
+                appendEffect(effectId, specifiedPlacement, measuredPlacement)
+            }
+        }
+
+        fun processEffectsPlacedAfter(anchorEffectId: Int, anchorEffectPlacement: EffectPlacement) {
+            val afterEffectKey = anchorEffectId
+            if (relativeEffectPlacements.containsKey(afterEffectKey)) {
+                val effectId = relativeEffectPlacements[afterEffectKey]
+                val effect = checkNotNull(placedEffects[effectId])
+
+                require(anchorEffectPlacement.max.isFinite())
+                val specifiedPlacement = EffectPlacement.after(anchorEffectPlacement.max)
+
+                val measuredPlacement = measureEffect(effect, specifiedPlacement)
+                appendEffect(effectId, specifiedPlacement, measuredPlacement)
+                processEffectsPlacedAfter(effectId, measuredPlacement)
+            }
+        }
+
+        check(absoluteEffectPlacements.isNotEmpty())
+        val sortedAbsolutePlacedEffects =
+            IntArray(absoluteEffectPlacements.size).also { array ->
+                var index = 0
+                absoluteEffectPlacements.forEachKey { array[index++] = it }
+                array.sortedBy { EffectPlacement(absoluteEffectPlacements[it]).sortOrder }
             }
 
-            sortBy { it.second.sortOrder }
+        sortedAbsolutePlacedEffects.forEach { effectId ->
+            val effect = checkNotNull(placedEffects[effectId])
+            val specifiedPlacement = EffectPlacement(absoluteEffectPlacements[effectId])
+            val measuredPlacement = measureEffect(effect, specifiedPlacement)
+            processEffectsPlacedBefore(effectId, measuredPlacement)
+            appendEffect(effectId, specifiedPlacement, measuredPlacement)
+            processEffectsPlacedAfter(effectId, measuredPlacement)
+        }
+
+        if (actualPlacements.last().max != Float.POSITIVE_INFINITY) {
+            sortedEffects.add(NoEffectPlaceholderId)
+            val placeholderPlacement = EffectPlacement.after(actualPlacements.last().max)
+            specifiedPlacements.add(placeholderPlacement)
+            actualPlacements.add(placeholderPlacement)
         }
     }
 
     // ---- MotionSpecBuilderScope implementation --------------------------------------------------
 
-    override fun at(position: Float, effect: Effect): PlacedEffect {
-        return after(position, effect)
-    }
-
-    override fun between(start: Float, end: Float, effect: Effect): PlacedEffect {
-        return addEffect(effect).also {
-            absoluteEffectPlacements[it.id] = EffectPlacement.between(start, end).value
-        }
-    }
-
-    override fun before(position: Float, effect: Effect): PlacedEffect {
-        return addEffect(effect).also {
-            absoluteEffectPlacements[it.id] = EffectPlacement.before(position).value
-        }
-    }
-
-    override fun before(otherEffect: PlacedEffect, effect: Effect): PlacedEffect {
-        require(placedEffects.containsKey(otherEffect.id))
-        require(!relativeEffectPlacements.containsKey(-otherEffect.id))
-        return addEffect(effect).also { relativeEffectPlacements[-otherEffect.id] = it.id }
-    }
-
-    override fun after(position: Float, effect: Effect): PlacedEffect {
+    override fun at(position: Float, effect: Effect.PlaceableAt): PlacedEffect {
         return addEffect(effect).also {
             absoluteEffectPlacements[it.id] = EffectPlacement.after(position).value
         }
     }
 
-    override fun after(otherEffect: PlacedEffect, effect: Effect): PlacedEffect {
+    override fun between(start: Float, end: Float, effect: Effect.PlaceableBetween): PlacedEffect {
+        return addEffect(effect).also {
+            absoluteEffectPlacements[it.id] = EffectPlacement.between(start, end).value
+        }
+    }
+
+    override fun before(position: Float, effect: Effect.PlaceableBefore): PlacedEffect {
+        return addEffect(effect).also {
+            absoluteEffectPlacements[it.id] = EffectPlacement.before(position).value
+        }
+    }
+
+    override fun before(otherEffect: PlacedEffect, effect: Effect.PlaceableBefore): PlacedEffect {
         require(placedEffects.containsKey(otherEffect.id))
+        require(!relativeEffectPlacements.containsKey(-otherEffect.id))
+        return addEffect(effect).also { relativeEffectPlacements[-otherEffect.id] = it.id }
+    }
+
+    override fun after(position: Float, effect: Effect.PlaceableAfter): PlacedEffect {
+        return addEffect(effect).also {
+            absoluteEffectPlacements[it.id] = EffectPlacement.after(position).value
+        }
+    }
+
+    override fun after(otherEffect: PlacedEffect, effect: Effect.PlaceableAfter): PlacedEffect {
+        require(placedEffects.containsKey(otherEffect.id))
+        require(!relativeEffectPlacements.containsKey(otherEffect.id))
+
+        relativeEffectPlacements.forEach { key, value ->
+            if (value == otherEffect.id) {
+                require(key > 0) {
+                    val other = placedEffects[otherEffect.id]
+                    "Cannot place effect [$effect] *after* [$other], since the latter was placed" +
+                        "*before* an effect"
+                }
+            }
+        }
+
         require(!relativeEffectPlacements.containsKey(otherEffect.id))
         return addEffect(effect).also { relativeEffectPlacements[otherEffect.id] = it.id }
     }
@@ -278,24 +315,10 @@ internal class MotionSpecBuilderImpl(
         return baseMapping.map(position)
     }
 
-    override var minLimit: Float = Float.NaN
-    override lateinit var minLimitKey: BreakpointKey
-    override var minLimitGuarantee: Guarantee = Guarantee.None
-    override var minLimitSpring: SpringParameters = SpringParameters.Snap
-
-    override var maxLimit: Float = Float.NaN
-    override lateinit var maxLimitKey: BreakpointKey
-    override var maxLimitGuarantee: Guarantee = Guarantee.None
-    override var maxLimitSpring: SpringParameters = SpringParameters.Snap
-    override var maxLimitSemantics: List<SemanticValue<*>> = emptyList()
-
-    private var forwardInvoked = false
-    private var backwardInvoked = false
-
     override fun unidirectional(
         initialMapping: Mapping,
         semantics: List<SemanticValue<*>>,
-        init: DirectionalBuilderScope.() -> Unit,
+        init: DirectionalEffectBuilderScope.() -> Unit,
     ) {
         forward(initialMapping, semantics, init)
         backward(initialMapping, semantics, init)
@@ -309,7 +332,7 @@ internal class MotionSpecBuilderImpl(
     override fun forward(
         initialMapping: Mapping,
         semantics: List<SemanticValue<*>>,
-        init: DirectionalBuilderScope.() -> Unit,
+        init: DirectionalEffectBuilderScope.() -> Unit,
     ) {
         check(!forwardInvoked) { "Cannot define forward spec more than once" }
         forwardInvoked = true
@@ -328,7 +351,7 @@ internal class MotionSpecBuilderImpl(
     override fun backward(
         initialMapping: Mapping,
         semantics: List<SemanticValue<*>>,
-        init: DirectionalBuilderScope.() -> Unit,
+        init: DirectionalEffectBuilderScope.() -> Unit,
     ) {
         check(!backwardInvoked) { "Cannot define backward spec more than once" }
         backwardInvoked = true
@@ -344,9 +367,21 @@ internal class MotionSpecBuilderImpl(
         reverseBuilder.prepareBuilderFn(mapping, semantics)
     }
 
-    private fun applyEffect(effect: Effect) {
-        if (effect == EmptyPlaceholder) {
-            val maxBreakpoint = Breakpoint(maxLimitKey, maxLimit, maxLimitSpring, maxLimitGuarantee)
+    private var forwardInvoked = false
+    private var backwardInvoked = false
+
+    private fun applyEffect(
+        effectId: Int,
+        specifiedPlacement: EffectPlacement,
+        actualPlacement: EffectPlacement,
+        minLimitKey: BreakpointKey,
+        maxLimitKey: BreakpointKey,
+    ) {
+        require(minLimitKey != maxLimitKey)
+
+        if (effectId == NoEffectPlaceholderId) {
+            val maxBreakpoint =
+                Breakpoint.create(maxLimitKey, actualPlacement.max, defaultSpring, Guarantee.None)
             builders.forEach { builder ->
                 builder.mappings += baseMapping
                 builder.breakpoints += maxBreakpoint
@@ -357,10 +392,21 @@ internal class MotionSpecBuilderImpl(
         val initialForwardSize = forwardBuilder.breakpoints.size
         val initialReverseSize = reverseBuilder.breakpoints.size
 
+        val effect = checkNotNull(placedEffects[effectId])
+
         forwardInvoked = false
         backwardInvoked = false
 
-        with(effect) { createSpec() }
+        builders.forEach { it.resetBeforeAfter() }
+        with(effect) {
+            createSpec(
+                actualPlacement.min,
+                minLimitKey,
+                actualPlacement.max,
+                maxLimitKey,
+                specifiedPlacement,
+            )
+        }
 
         check(forwardInvoked) { "forward() spec not defined during createSpec()" }
         check(backwardInvoked) { "backward() spec not defined during createSpec()" }
@@ -368,38 +414,166 @@ internal class MotionSpecBuilderImpl(
         builders.forEachIndexed { index, builder ->
             val initialSize = if (index == 0) initialForwardSize else initialReverseSize
 
-            require(minLimitKey != maxLimitKey)
-            require(minLimit < maxLimit)
-
             require(builder.breakpoints[initialSize - 1].key == minLimitKey)
 
             builder.finalizeBuilderFn(
-                maxLimit,
+                actualPlacement.max,
                 maxLimitKey,
-                maxLimitSpring,
-                maxLimitGuarantee,
-                maxLimitSemantics,
+                builder.afterSpring ?: defaultSpring,
+                builder.afterGuarantee ?: Guarantee.None,
+                builder.afterSemantics ?: emptyList(),
             )
             check(builder.breakpoints.size > initialSize)
 
-            // Check whether minLimit spring or guarantee have been updated.
-            val oldMinBreakpoint = builder.breakpoints[initialSize - 1]
-            if (
-                oldMinBreakpoint.spring != minLimitSpring ||
-                    oldMinBreakpoint.guarantee != minLimitGuarantee
-            ) {
+            if (builder.beforeSpring != null || builder.beforeGuarantee != null) {
+                val oldMinBreakpoint = builder.breakpoints[initialSize - 1]
                 builder.breakpoints[initialSize - 1] =
-                    Breakpoint(minLimitKey, minLimit, minLimitSpring, minLimitGuarantee)
+                    oldMinBreakpoint.copy(
+                        spring = builder.beforeSpring ?: oldMinBreakpoint.spring,
+                        guarantee = builder.beforeGuarantee ?: oldMinBreakpoint.guarantee,
+                    )
             }
+            // FIXME mappings & semantics
         }
     }
 
     companion object {
-        private val EmptyPlaceholder =
-            object : Effect {
-                override fun EffectApplyScope.createSpec() {
-                    throw UnsupportedOperationException()
+        private val NoEffectPlaceholderId = -1
+    }
+}
+
+private class DirectionalEffectBuilderScopeImpl(
+    defaultSpring: SpringParameters,
+    baseSemantics: List<SemanticValue<*>>,
+) : DirectionalBuilderImpl(defaultSpring, baseSemantics), DirectionalEffectBuilderScope {
+
+    var beforeGuarantee: Guarantee? = null
+    var beforeSpring: SpringParameters? = null
+    var beforeSemantics: List<SemanticValue<*>>? = null
+    var beforeMapping: Mapping? = null
+
+    override fun before(
+        spring: SpringParameters?,
+        guarantee: Guarantee?,
+        semantics: List<SemanticValue<*>>?,
+        mapping: Mapping?,
+    ) {
+        beforeGuarantee = guarantee
+        beforeSpring = spring
+        beforeSemantics = semantics
+        beforeMapping = mapping
+    }
+
+    var afterGuarantee: Guarantee? = null
+    var afterSpring: SpringParameters? = null
+    var afterSemantics: List<SemanticValue<*>>? = null
+    var afterMapping: Mapping? = null
+
+    override fun after(
+        spring: SpringParameters?,
+        guarantee: Guarantee?,
+        semantics: List<SemanticValue<*>>?,
+        mapping: Mapping?,
+    ) {
+        afterGuarantee = guarantee
+        afterSpring = spring
+        afterSemantics = semantics
+        afterMapping = mapping
+    }
+
+    fun resetBeforeAfter() {
+        beforeGuarantee = null
+        beforeSpring = null
+        beforeSemantics = null
+        beforeMapping = null
+        afterGuarantee = null
+        afterSpring = null
+        afterSemantics = null
+        afterMapping = null
+    }
+}
+
+private fun MotionBuilderContext.measureEffect(
+    effect: Effect,
+    specifiedPlacement: EffectPlacement,
+): EffectPlacement {
+    return when (specifiedPlacement.type) {
+        EffectPlacemenType.At -> {
+            require(effect is Effect.PlaceableAt)
+            with(effect) {
+                val minExtend = minExtent()
+                require(minExtend.isFinite() && minExtend >= 0)
+                val maxExtend = maxExtent()
+                require(maxExtend.isFinite() && maxExtend >= 0)
+
+                EffectPlacement.between(
+                    specifiedPlacement.start - minExtend,
+                    specifiedPlacement.start + maxExtend,
+                )
+            }
+        }
+
+        EffectPlacemenType.Before -> {
+            require(effect is Effect.PlaceableBefore)
+            with(effect) {
+                val intrinsicSize = intrinsicSize()
+                if (intrinsicSize.isFinite()) {
+                    require(intrinsicSize >= 0)
+
+                    EffectPlacement.between(
+                        specifiedPlacement.start,
+                        specifiedPlacement.start - intrinsicSize,
+                    )
+                } else {
+                    specifiedPlacement
                 }
             }
+        }
+
+        EffectPlacemenType.After -> {
+            require(effect is Effect.PlaceableAfter)
+            with(effect) {
+                val intrinsicSize = intrinsicSize()
+                if (intrinsicSize.isFinite()) {
+
+                    require(intrinsicSize >= 0)
+
+                    EffectPlacement.between(
+                        specifiedPlacement.start,
+                        specifiedPlacement.start + intrinsicSize,
+                    )
+                } else {
+                    specifiedPlacement
+                }
+            }
+        }
+
+        EffectPlacemenType.Between -> specifiedPlacement
     }
+}
+
+@JvmInline
+value class MutablePlacementList(val storage: MutableLongList) {
+
+    val size: Int
+        get() = storage.size
+
+    val lastIndex: Int
+        get() = storage.lastIndex
+
+    val indices: IntRange
+        get() = storage.indices
+
+    fun isEmpty() = storage.isEmpty()
+
+    fun isNotEmpty() = storage.isNotEmpty()
+
+    operator fun get(index: Int) = EffectPlacement(storage.get(index))
+
+    fun last() = EffectPlacement(storage.last())
+
+    fun add(element: EffectPlacement) = storage.add(element.value)
+
+    operator fun set(index: Int, element: EffectPlacement) =
+        EffectPlacement(storage.set(index, element.value))
 }

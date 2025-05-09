@@ -30,7 +30,7 @@ import com.android.mechanics.spring.SpringParameters
  *
  * Clients must use [directionalMotionSpec] instead.
  */
-internal class DirectionalBuilderImpl(
+internal open class DirectionalBuilderImpl(
     override val defaultSpring: SpringParameters,
     baseSemantics: List<SemanticValue<*>>,
 ) : DirectionalBuilderScope {
@@ -58,7 +58,7 @@ internal class DirectionalBuilderImpl(
         initialSemantics.forEach { semantic ->
             val existingBuilder = semantics.firstOrNull { it.key == semantic.key }
             if (existingBuilder != null) {
-                existingBuilder.backfill(mappings.size)
+                existingBuilder.backfill(mappings.size - 1)
                 existingBuilder.append(semantic.value)
             } else {
                 SegmentSemanticValuesBuilder(semantic).also { semantics.add(it) }
