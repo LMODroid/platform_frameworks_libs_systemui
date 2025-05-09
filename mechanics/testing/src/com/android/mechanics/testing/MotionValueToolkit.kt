@@ -148,7 +148,7 @@ enum class VerifyTimeSeriesResult {
 /** A semantic value to capture in the golden. */
 class CapturedSemantics<T>(
     val key: SemanticKey<T>,
-    val dataPointType: DataPointType<T>,
+    val dataPointType: DataPointType<T & Any>,
     val name: String = key.debugLabel,
 ) {
     fun toDataPoint(frameData: FrameData): DataPoint<T> {
@@ -213,9 +213,19 @@ sealed class MotionValueToolkit<MotionValueType, GestureContextType> {
         verificationFn: TimeSeries.() -> VerifyTimeSeriesResult,
     ) {
         val recordedMotion = motionTestRule.create(timeSeries, screenshots = null)
-        val skipGoldenVerification = verificationFn.invoke(recordedMotion.timeSeries)
-        if (skipGoldenVerification == VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden) {
-            motionTestRule.assertThat(recordedMotion).timeSeriesMatchesGolden()
+        var assertTimeseriesMatchesGolden = false
+        try {
+            assertTimeseriesMatchesGolden =
+                verificationFn.invoke(recordedMotion.timeSeries) ==
+                    VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
+        } finally {
+            try {
+                motionTestRule.assertThat(recordedMotion).timeSeriesMatchesGolden()
+            } catch (e: AssertionError) {
+                if (assertTimeseriesMatchesGolden) {
+                    throw e
+                }
+            }
         }
     }
 

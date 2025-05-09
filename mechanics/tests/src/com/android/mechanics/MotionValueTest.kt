@@ -477,7 +477,7 @@ class MotionValueTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Def
                     .containsExactlyElementsIn(dataPoints<Float>("derived-output"))
                     .inOrder()
                 // and its never animated.
-                assertThat(dataPoints<Float>("derived-isStable")).doesNotContain(false)
+                assertThat(dataPoints<Boolean>("derived-isStable")).doesNotContain(false)
 
                 AssertTimeSeriesMatchesGolden
             },

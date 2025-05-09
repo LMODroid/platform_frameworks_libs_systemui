@@ -32,10 +32,24 @@ val TimeSeries.outputTarget: List<Float>
 val TimeSeries.isStable: List<Boolean>
     get() = dataPoints("isStable")
 
-fun <T> TimeSeries.dataPoints(featureName: String): List<T> {
-    @Suppress("UNCHECKED_CAST")
-    return (features[featureName] as Feature<T>).dataPoints.map {
-        require(it is ValueDataPoint)
-        it.value
+/**
+ * Returns data points for the given [featureName].
+ *
+ * Throws a [ClassCastException] if any data point is not a [ValueDataPoint] of type [T].
+ */
+inline fun <reified T : Any> TimeSeries.dataPoints(featureName: String): List<T> {
+    return (features[featureName] as Feature<*>).dataPoints.map {
+        (it as ValueDataPoint).value as T
+    }
+}
+
+/**
+ * Returns data points for the given [featureName].
+ *
+ * Returns `null` for all data points that are not a [ValueDataPoint] of type [T].
+ */
+inline fun <reified T : Any> TimeSeries.nullableDataPoints(featureName: String): List<T?> {
+    return (features[featureName] as Feature<*>).dataPoints.map {
+        (it as? ValueDataPoint)?.value as T?
     }
 }
