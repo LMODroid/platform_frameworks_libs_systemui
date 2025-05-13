@@ -226,12 +226,15 @@ internal class MotionSpecBuilderImpl(
         }
 
         check(absoluteEffectPlacements.isNotEmpty())
+        // Implementation note: sortedAbsolutePlacedEffects should be an IntArray, but that cannot
+        // be sorted with a custom comparator, hence using a typed array.
         val sortedAbsolutePlacedEffects =
-            IntArray(absoluteEffectPlacements.size).also { array ->
-                var index = 0
-                absoluteEffectPlacements.forEachKey { array[index++] = it }
-                array.sortedBy { EffectPlacement(absoluteEffectPlacements[it]).sortOrder }
-            }
+            Array(absoluteEffectPlacements.size) { 0 }
+                .also { array ->
+                    var index = 0
+                    absoluteEffectPlacements.forEachKey { array[index++] = it }
+                    array.sortBy { EffectPlacement(absoluteEffectPlacements[it]).sortOrder }
+                }
 
         sortedAbsolutePlacedEffects.forEach { effectId ->
             val effect = checkNotNull(placedEffects[effectId])
@@ -383,7 +386,7 @@ internal class MotionSpecBuilderImpl(
             val maxBreakpoint =
                 Breakpoint.create(maxLimitKey, actualPlacement.max, defaultSpring, Guarantee.None)
             builders.forEach { builder ->
-                builder.mappings += baseMapping
+                builder.mappings += builder.afterMapping ?: baseMapping
                 builder.breakpoints += maxBreakpoint
             }
             return
@@ -433,7 +436,14 @@ internal class MotionSpecBuilderImpl(
                         guarantee = builder.beforeGuarantee ?: oldMinBreakpoint.guarantee,
                     )
             }
-            // FIXME mappings & semantics
+
+            builder.beforeMapping
+                ?.takeIf { initialSize >= 2 && builder.mappings[initialSize - 2] === baseMapping }
+                ?.also { builder.mappings[initialSize - 2] = it }
+
+            builder.beforeSemantics?.forEach {
+                builder.getSemantics(it.key).updateBefore(initialSize - 2, it.value)
+            }
         }
     }
 

@@ -25,7 +25,6 @@ import com.android.mechanics.spec.with
 import com.android.mechanics.spring.SpringParameters
 import com.android.mechanics.testing.DirectionalMotionSpecSubject.Companion.assertThat
 import com.android.mechanics.testing.FakeMotionSpecBuilderContext
-import kotlin.test.assertFailsWith
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -221,8 +220,8 @@ class DirectionalBuilderImplTest {
     }
 
     @Test
-    fun directionalSpec_semantics_changingUndeclaredSemantics_throws() {
-        assertFailsWith<NoSuchElementException> {
+    fun directionalSpec_semantics_changingUndeclaredSemantics_backfills() {
+        val result =
             directionalMotionSpec(Spring) {
                 mapping(
                     breakpoint = 0f,
@@ -230,7 +229,9 @@ class DirectionalBuilderImplTest {
                     semantics = listOf(S1 with "Two"),
                 )
             }
-        }
+
+        assertThat(result).mappings().hasSize(2)
+        assertThat(result).semantics().withKey(S1).containsExactly("Two", "Two").inOrder()
     }
 
     @Test

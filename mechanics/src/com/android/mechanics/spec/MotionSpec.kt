@@ -177,7 +177,7 @@ data class DirectionalMotionSpec(
 
         semantics.forEach {
             require(it.values.size == mappings.size) {
-                "Semantics ${it.key} does not include correct number of segments"
+                "Semantics ${it.key} contains ${it.values.size} values vs ${mappings.size} expected"
             }
         }
     }

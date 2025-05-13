@@ -22,6 +22,7 @@ import com.android.mechanics.spec.DirectionalMotionSpec
 import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.SegmentSemanticValues
+import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spec.SemanticValue
 import com.android.mechanics.spring.SpringParameters
 
@@ -44,7 +45,7 @@ internal open class DirectionalBuilderImpl(
     private var breakpointKey: BreakpointKey? = null
 
     init {
-        baseSemantics.forEach { semantics.add(SegmentSemanticValuesBuilder(it)) }
+        baseSemantics.forEach { getSemantics(it.key).apply { set(0, it.value) } }
     }
 
     /** Prepares the builder for invoking the [DirectionalBuilderFn] on it. */
@@ -55,15 +56,19 @@ internal open class DirectionalBuilderImpl(
         check(mappings.size == breakpoints.size - 1)
 
         mappings.add(initialMapping)
+        val semanticIndex = mappings.size - 1
         initialSemantics.forEach { semantic ->
-            val existingBuilder = semantics.firstOrNull { it.key == semantic.key }
-            if (existingBuilder != null) {
-                existingBuilder.backfill(mappings.size - 1)
-                existingBuilder.append(semantic.value)
-            } else {
-                SegmentSemanticValuesBuilder(semantic).also { semantics.add(it) }
-            }
+            getSemantics(semantic.key).apply { set(semanticIndex, semantic.value) }
         }
+    }
+
+    internal fun <T> getSemantics(key: SemanticKey<T>): SegmentSemanticValuesBuilder<T> {
+        @Suppress("UNCHECKED_CAST")
+        var builder = semantics.firstOrNull { it.key == key } as SegmentSemanticValuesBuilder<T>?
+        if (builder == null) {
+            builder = SegmentSemanticValuesBuilder(key).also { semantics.add(it) }
+        }
+        return builder
     }
 
     /**
@@ -93,7 +98,7 @@ internal open class DirectionalBuilderImpl(
         } else {
             check(atPosition.isFinite())
             check(atPosition > breakpoints.last().position) {
-                "Breakpoints were placed outside of partial sequence"
+                "Breakpoint ${breakpoints.last()} placed after partial sequence (end=$atPosition)"
             }
             applySemantics(semantics)
         }
@@ -116,13 +121,9 @@ internal open class DirectionalBuilderImpl(
         require(mappings.size == breakpoints.size - 1)
         check(breakpoints.last() == Breakpoint.maxLimit)
 
-        val semantics =
-            semantics.map { builder ->
-                with(builder) {
-                    backfill(mappings.size)
-                    build()
-                }
-            }
+        val segmentCount = mappings.size
+
+        val semantics = semantics.map { builder -> with(builder) { build(segmentCount) } }
 
         return DirectionalMotionSpec(breakpoints.toList(), mappings.toList(), semantics)
     }
@@ -235,13 +236,10 @@ internal open class DirectionalBuilderImpl(
 
     private fun applySemantics(toApply: List<SemanticValue<*>>) {
         toApply.forEach { (key, value) ->
-            val semanticValuesBuilder =
-                checkNotNull(semantics.first { it.key == key }) {
-                    "semantic key $key not initially registered"
-                }
-
-            semanticValuesBuilder.backfill(mappings.size)
-            semanticValuesBuilder.append(value)
+            getSemantics(key).apply {
+                // applySemantics is called BEFORE adding the mapping
+                set(mappings.size, value)
+            }
         }
     }
 
@@ -345,21 +343,52 @@ internal open class DirectionalBuilderImpl(
     }
 }
 
-internal class SegmentSemanticValuesBuilder<T>(seed: SemanticValue<T>) {
-    val key = seed.key
-    private val values = mutableListOf(seed.value)
+internal class SegmentSemanticValuesBuilder<T>(val key: SemanticKey<T>) {
+    private val values = mutableListOf<SemanticValueHolder<T>>()
+    private val unspecified = SemanticValueHolder.Unspecified<T>()
 
-    fun backfill(segmentCount: Int) {
-        val lastValue = values.last()
-        repeat(segmentCount - values.size) { values.add(lastValue) }
+    @Suppress("UNCHECKED_CAST")
+    fun <V> set(segmentIndex: Int, value: V) {
+        if (segmentIndex < values.size) {
+            values[segmentIndex] = SemanticValueHolder.Specified(value as T)
+        } else {
+            backfill(segmentCount = segmentIndex)
+            values.add(SemanticValueHolder.Specified(value as T))
+        }
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun <V> append(value: V) {
-        values.add(value as T)
+    fun <V> updateBefore(segmentIndex: Int, value: V) {
+        require(segmentIndex < values.size)
+
+        val specified = SemanticValueHolder.Specified(value as T)
+
+        for (i in segmentIndex downTo 0) {
+            if (values[i] is SemanticValueHolder.Specified) break
+            values[i] = specified
+        }
     }
 
-    fun build() = SegmentSemanticValues(key, values.toList())
+    fun build(segmentCount: Int): SegmentSemanticValues<T> {
+        backfill(segmentCount)
+        val firstValue = values.firstNotNullOf { it as? SemanticValueHolder.Specified }.value
+        return SegmentSemanticValues(
+            key,
+            values.drop(1).runningFold(firstValue) { lastValue, thisHolder ->
+                if (thisHolder is SemanticValueHolder.Specified) thisHolder.value else lastValue
+            },
+        )
+    }
+
+    private fun backfill(segmentCount: Int) {
+        repeat(segmentCount - values.size) { values.add(unspecified) }
+    }
+}
+
+internal sealed interface SemanticValueHolder<T> {
+    class Specified<T>(val value: T) : SemanticValueHolder<T>
+
+    class Unspecified<T>() : SemanticValueHolder<T>
 }
 
 private data object CanBeLastSegmentImpl : CanBeLastSegment

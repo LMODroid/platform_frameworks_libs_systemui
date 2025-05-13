@@ -64,7 +64,6 @@ value class EffectPlacement internal constructor(val value: Long) {
 
     val isForward: Boolean
         get() {
-
             return when (type) {
                 EffectPlacemenType.At -> true
                 EffectPlacemenType.Before -> false
@@ -74,7 +73,14 @@ value class EffectPlacement internal constructor(val value: Long) {
         }
 
     internal val sortOrder: Float
-        get() = if (isForward) start.nextUp() else start.nextDown()
+        get() {
+            return when (type) {
+                EffectPlacemenType.At -> start
+                EffectPlacemenType.Before -> start.nextDown()
+                EffectPlacemenType.After -> start.nextUp()
+                EffectPlacemenType.Between -> (start + end) / 2
+            }
+        }
 
     internal val min: Float
         get() = min(start, end)
