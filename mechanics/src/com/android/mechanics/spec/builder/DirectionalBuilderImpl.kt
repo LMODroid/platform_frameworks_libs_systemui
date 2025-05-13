@@ -100,11 +100,14 @@ internal open class DirectionalBuilderImpl(
             check(atPosition > breakpoints.last().position) {
                 "Breakpoint ${breakpoints.last()} placed after partial sequence (end=$atPosition)"
             }
-            applySemantics(semantics)
         }
 
         toBreakpointImpl(atPosition, key)
         doAddBreakpointImpl(springSpec, guarantee)
+
+        if (key != BreakpointKey.MaxLimit) {
+            applySemantics(semantics)
+        }
     }
 
     fun finalizeBuilderFn(breakpoint: Breakpoint) =

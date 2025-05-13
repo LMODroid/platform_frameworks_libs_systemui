@@ -83,7 +83,7 @@ class ViewMotionValueTest {
                 // There must never be an ongoing animation.
                 assertThat(isStable).doesNotContain(false)
 
-                AssertTimeSeriesMatchesGolden
+                AssertTimeSeriesMatchesGolden()
             },
         ) {
             animateValueTo(100f)

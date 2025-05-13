@@ -67,7 +67,9 @@ fun <
     initialDirection: InputDirection = InputDirection.Max,
     directionChangeSlop: Float = 5f,
     stableThreshold: Float = 0.01f,
-    verifyTimeSeries: VerifyTimeSeriesFn = { VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden },
+    verifyTimeSeries: VerifyTimeSeriesFn = {
+        VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden()
+    },
     createDerived: (underTest: MotionValueType) -> List<MotionValueType> = { emptyList() },
     testInput: suspend (InputScope<MotionValueType, GestureContextType>).() -> Unit,
 ) {
@@ -140,9 +142,11 @@ suspend fun InputScope<*, *>.animatedInputSequence(vararg values: Float) {
 typealias VerifyTimeSeriesFn = TimeSeries.() -> VerifyTimeSeriesResult
 
 /** [VerifyTimeSeriesFn] indicating whether the timeseries should be verified the golden file. */
-enum class VerifyTimeSeriesResult {
-    SkipGoldenVerification,
-    AssertTimeSeriesMatchesGolden,
+interface VerifyTimeSeriesResult {
+    data object SkipGoldenVerification : VerifyTimeSeriesResult
+
+    data class AssertTimeSeriesMatchesGolden(val goldenName: String? = null) :
+        VerifyTimeSeriesResult
 }
 
 /** A semantic value to capture in the golden. */
@@ -214,13 +218,17 @@ sealed class MotionValueToolkit<MotionValueType, GestureContextType> {
     ) {
         val recordedMotion = motionTestRule.create(timeSeries, screenshots = null)
         var assertTimeseriesMatchesGolden = false
+        var goldenName: String? = null
         try {
-            assertTimeseriesMatchesGolden =
-                verificationFn.invoke(recordedMotion.timeSeries) ==
-                    VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
+
+            val result = verificationFn.invoke(recordedMotion.timeSeries)
+            if (result is VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden) {
+                assertTimeseriesMatchesGolden = true
+                goldenName = result.goldenName
+            }
         } finally {
             try {
-                motionTestRule.assertThat(recordedMotion).timeSeriesMatchesGolden()
+                motionTestRule.assertThat(recordedMotion).timeSeriesMatchesGolden(goldenName)
             } catch (e: AssertionError) {
                 if (assertTimeseriesMatchesGolden) {
                     throw e

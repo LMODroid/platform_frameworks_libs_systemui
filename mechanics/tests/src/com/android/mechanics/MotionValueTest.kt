@@ -80,7 +80,7 @@ class MotionValueTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Def
                 // There must never be an ongoing animation.
                 assertThat(isStable).doesNotContain(false)
 
-                AssertTimeSeriesMatchesGolden
+                AssertTimeSeriesMatchesGolden()
             },
         ) {
             animateValueTo(100f)
@@ -479,7 +479,7 @@ class MotionValueTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Def
                 // and its never animated.
                 assertThat(dataPoints<Boolean>("derived-isStable")).doesNotContain(false)
 
-                AssertTimeSeriesMatchesGolden
+                AssertTimeSeriesMatchesGolden()
             },
         ) {
             animateValueTo(1f, changePerFrame = 0.1f)

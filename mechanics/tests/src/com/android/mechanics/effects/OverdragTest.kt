@@ -53,7 +53,7 @@ class OverdragTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Defaul
             semantics = CaptureOverdragSemantics,
             verifyTimeSeries = {
                 assertThat(output.filter { it > 30 }).isEmpty()
-                VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
+                VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden()
             },
         ) {
             animateValueTo(100f, changePerFrame = 5f)
@@ -69,7 +69,7 @@ class OverdragTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Defaul
             verifyTimeSeries = {
                 assertThat(output.filter { it < -30 }).isEmpty()
 
-                VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
+                VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden()
             },
         ) {
             animateValueTo(-100f, changePerFrame = 5f)
@@ -84,7 +84,7 @@ class OverdragTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Defaul
             initialValue = 5f,
             verifyTimeSeries = {
                 assertThat(output.filter { it < -30 }).isEmpty()
-                VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
+                VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden()
             },
         ) {
             animateValueTo(100f, changePerFrame = 5f)

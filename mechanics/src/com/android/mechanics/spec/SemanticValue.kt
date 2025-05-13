@@ -69,4 +69,6 @@ class SegmentSemanticValues<T>(val key: SemanticKey<T>, val values: List<T>) {
     operator fun get(segmentIndex: Int): SemanticValue<T> {
         return SemanticValue(key, values[segmentIndex])
     }
+
+    override fun toString() = "Semantics($key): [$values]"
 }
