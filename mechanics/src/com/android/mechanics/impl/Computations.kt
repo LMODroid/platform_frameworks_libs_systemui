@@ -481,6 +481,13 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
                                 guaranteeState.updatedSpringParameters(lastBreakpoint)
                         }
 
+                        springState =
+                            springState.calculateUpdatedState(
+                                nextBreakpointCrossTime - lastAnimationTime,
+                                springParameters,
+                            )
+                        lastAnimationTime = nextBreakpointCrossTime
+
                         val mappingBefore = mappings[segmentIndex]
                         val beforeBreakpoint = mappingBefore.map(nextBreakpoint.position)
                         val mappingAfter = mappings[segmentIndex + directionOffset]
@@ -498,18 +505,7 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
                                     "  after: $afterBreakpoint (mapping: $mappingAfter)",
                             )
                         }
-
-                        if (!hasJumped && delta != 0f) {
-                            hasJumped = true
-                            springState = springState.nudge(velocityDelta = directMappedVelocity)
-                        }
-
-                        springState =
-                            springState.calculateUpdatedState(
-                                nextBreakpointCrossTime - lastAnimationTime,
-                                springParameters,
-                            )
-                        lastAnimationTime = nextBreakpointCrossTime
+                        hasJumped = hasJumped || delta != 0f
 
                         if (deltaIsFinite) {
                             springState = springState.nudge(displacementDelta = -delta)
@@ -532,6 +528,10 @@ internal abstract class Computations : CurrentFrameInput, LastFrameState, Static
 
                                 is Guarantee.None -> GuaranteeState.Inactive
                             }
+                    }
+
+                    if (hasJumped) {
+                        springState = springState.nudge(velocityDelta = directMappedVelocity)
                     }
 
                     val tightened = guarantee.updatedSpringParameters(segment.entryBreakpoint)
