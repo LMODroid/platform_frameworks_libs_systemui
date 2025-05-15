@@ -23,8 +23,6 @@ import com.android.mechanics.spec.Guarantee
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.SemanticKey
 import com.android.mechanics.spec.SemanticValue
-import com.android.mechanics.spec.builder.EffectPlacement.Companion.after
-import com.android.mechanics.spec.builder.EffectPlacement.Companion.before
 import com.android.mechanics.spec.with
 import com.android.mechanics.spring.SpringParameters
 import com.android.mechanics.testing.FakeMotionSpecBuilderContext
@@ -283,7 +281,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
                     maxLimitKey: BreakpointKey,
                     placement: EffectPlacement,
                 ) {
-                    forward(Mapping.One) { constantValue(breakpoint = minLimit + 0.5f, 10f) }
+                    forward(Mapping.One) { fixedValue(breakpoint = minLimit + 0.5f, 10f) }
                     backward(Mapping.Two)
                 }
             }
@@ -305,7 +303,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
         val breakpointKey = BreakpointKey("foo")
         val effect =
             UnidirectionalEffect(Mapping.One) {
-                constantValue(breakpoint = 1.5f, value = 10f, key = breakpointKey)
+                fixedValue(breakpoint = 1.5f, value = 10f, key = breakpointKey)
             }
 
         val result =
@@ -320,7 +318,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     @Test
     fun effect_setBreakpointBeforeMinLimit_throws() {
         val rogueEffect =
-            UnidirectionalEffect(Mapping.One) { this.constantValue(breakpoint = 0.5f, value = 0f) }
+            UnidirectionalEffect(Mapping.One) { this.fixedValue(breakpoint = 0.5f, value = 0f) }
 
         assertFailsWith<IllegalStateException> {
             motionSpec(baseMapping = Mapping.Zero, defaultSpring = spatial.default) {
@@ -332,7 +330,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
     @Test
     fun effect_setBreakpointAfterMinLimit_throws() {
         val rogueEffect =
-            UnidirectionalEffect(Mapping.One) { this.constantValue(breakpoint = 2.5f, value = 0f) }
+            UnidirectionalEffect(Mapping.One) { this.fixedValue(breakpoint = 2.5f, value = 0f) }
 
         assertFailsWith<IllegalStateException> {
             motionSpec(baseMapping = Mapping.Zero, defaultSpring = spatial.default) {
@@ -349,7 +347,7 @@ class MotionSpecBuilderTest : MotionBuilderContext by FakeMotionSpecBuilderConte
                 Mapping.One,
                 semantics = listOf(SemanticValue(semanticKey, "initial")),
             ) {
-                constantValue(
+                fixedValue(
                     breakpoint = 1.5f,
                     value = 2f,
                     semantics = listOf(SemanticValue(semanticKey, "second")),

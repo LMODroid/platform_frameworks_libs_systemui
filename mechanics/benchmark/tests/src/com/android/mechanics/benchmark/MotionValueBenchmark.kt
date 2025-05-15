@@ -173,7 +173,7 @@ class MotionValueBenchmark {
                     defaultSpring = SpringParameters(stiffness = 300f, dampingRatio = .9f),
                     initialMapping = Mapping.Zero,
                 ) {
-                    constantValue(breakpoint = 1f, value = 1f)
+                    fixedValue(breakpoint = 1f, value = 1f)
                 }
             )
 
@@ -232,7 +232,7 @@ class MotionValueBenchmark {
                     defaultSpring = SpringParameters(stiffness = 300f, dampingRatio = .9f),
                     initialMapping = Mapping.Zero,
                 ) {
-                    constantValue(
+                    fixedValue(
                         breakpoint = 1f,
                         value = 1f,
                         guarantee = Guarantee.GestureDragDelta(1f),

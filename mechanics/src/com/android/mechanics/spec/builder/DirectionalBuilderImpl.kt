@@ -193,7 +193,7 @@ internal open class DirectionalBuilderImpl(
         return CanBeLastSegmentImpl
     }
 
-    override fun constantValue(
+    override fun fixedValue(
         breakpoint: Float,
         value: Float,
         spring: SpringParameters,
@@ -204,11 +204,11 @@ internal open class DirectionalBuilderImpl(
         applySemantics(semantics)
         toBreakpointImpl(breakpoint, key)
         jumpToImpl(value, spring, guarantee)
-        continueWithConstantValueImpl()
+        continueWithFixedValueImpl()
         return CanBeLastSegmentImpl
     }
 
-    override fun constantValueFromCurrent(
+    override fun fixedValueFromCurrent(
         breakpoint: Float,
         delta: Float,
         spring: SpringParameters,
@@ -219,7 +219,7 @@ internal open class DirectionalBuilderImpl(
         applySemantics(semantics)
         toBreakpointImpl(breakpoint, key)
         jumpByImpl(delta, spring, guarantee)
-        continueWithConstantValueImpl()
+        continueWithFixedValueImpl()
         return CanBeLastSegmentImpl
     }
 
@@ -258,7 +258,7 @@ internal open class DirectionalBuilderImpl(
         fractionalMapping = fraction
     }
 
-    private fun continueWithConstantValueImpl() {
+    private fun continueWithFixedValueImpl() {
         check(sourceValue.isFinite())
 
         mappings.add(Mapping.Fixed(sourceValue))

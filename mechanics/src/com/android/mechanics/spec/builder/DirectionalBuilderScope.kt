@@ -155,7 +155,7 @@ interface DirectionalBuilderScope {
 
     /**
      * Ends the current segment at the [breakpoint] position and defines the next segment to output
-     * a constant value ([value]).
+     * a fixed value ([value]).
      *
      * Note: This segment can be used as the last segment in the specification.
      *
@@ -169,7 +169,7 @@ interface DirectionalBuilderScope {
      * @param semantics Updated semantics values to be applied. Must be a subset of the
      *   [SemanticKey]s used when first creating this builder.
      */
-    fun constantValue(
+    fun fixedValue(
         breakpoint: Float,
         value: Float,
         spring: SpringParameters = defaultSpring,
@@ -187,7 +187,7 @@ interface DirectionalBuilderScope {
      *
      * @param breakpoint The breakpoint defining the end of the current segment and the start of the
      *   next.
-     * @param delta An optional offset to apply to the mapped value to determine the constant value.
+     * @param delta An optional offset to apply to the mapped value to determine the fixed value.
      *   Defaults to 0f.
      * @param spring The [SpringParameters] for the transition to this breakpoint. Defaults to
      *   [defaultSpring].
@@ -196,7 +196,7 @@ interface DirectionalBuilderScope {
      * @param semantics Updated semantics values to be applied. Must be a subset of the
      *   [SemanticKey]s used when first creating this builder.
      */
-    fun constantValueFromCurrent(
+    fun fixedValueFromCurrent(
         breakpoint: Float,
         delta: Float = 0f,
         spring: SpringParameters = defaultSpring,
@@ -238,7 +238,7 @@ interface DirectionalBuilderScope {
      *
      * @param breakpoint The breakpoint defining the end of the current segment and the start of the
      *   next.
-     * @param delta An optional offset to apply to the mapped value to determine the constant value.
+     * @param delta An optional offset to apply to the mapped value to determine the fixed value.
      * @param spring The [SpringParameters] for the transition to this breakpoint.
      * @param guarantee The animation guarantee for this transition.
      * @param key A unique [BreakpointKey] for this breakpoint.

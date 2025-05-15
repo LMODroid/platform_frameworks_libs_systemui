@@ -39,7 +39,7 @@ class MotionSpecTest {
         val underTest =
             MotionSpec(
                 directionalMotionSpec(Spring) {
-                    constantValue(breakpoint = 10f, key = B1, value = 1f)
+                    fixedValue(breakpoint = 10f, key = B1, value = 1f)
                     identity(breakpoint = 20f, key = B2)
                 }
             )
@@ -54,7 +54,7 @@ class MotionSpecTest {
             MotionSpec(
                 maxDirection =
                     directionalMotionSpec(Spring) {
-                        constantValue(breakpoint = 10f, key = B1, value = 1f)
+                        fixedValue(breakpoint = 10f, key = B1, value = 1f)
                         identity(breakpoint = 20f, key = B2)
                     },
                 minDirection = DirectionalMotionSpec.Empty,
@@ -71,7 +71,7 @@ class MotionSpecTest {
                 maxDirection = DirectionalMotionSpec.Empty,
                 minDirection =
                     directionalMotionSpec(Spring) {
-                        constantValue(breakpoint = 10f, key = B1, value = 1f)
+                        fixedValue(breakpoint = 10f, key = B1, value = 1f)
                         identity(breakpoint = 20f, key = B2)
                     },
             )
@@ -111,7 +111,7 @@ class MotionSpecTest {
         val underTest =
             MotionSpec(
                 directionalMotionSpec(Spring) {
-                    constantValue(breakpoint = 10f, key = B1, value = 1f)
+                    fixedValue(breakpoint = 10f, key = B1, value = 1f)
                     identity(breakpoint = 20f, key = B2)
                 }
             )
@@ -129,7 +129,7 @@ class MotionSpecTest {
         val underTest =
             MotionSpec(
                 directionalMotionSpec(Spring) {
-                    constantValue(breakpoint = 10f, key = B1, value = 1f)
+                    fixedValue(breakpoint = 10f, key = B1, value = 1f)
                     identity(breakpoint = 20f, key = B2)
                 }
             )
@@ -148,12 +148,12 @@ class MotionSpecTest {
             MotionSpec(
                 maxDirection =
                     directionalMotionSpec(Spring) {
-                        constantValue(breakpoint = 10f, key = B1, value = 1f)
+                        fixedValue(breakpoint = 10f, key = B1, value = 1f)
                         identity(breakpoint = 20f, key = B2)
                     },
                 minDirection =
                     directionalMotionSpec(Spring) {
-                        constantValue(breakpoint = 5f, key = B1, value = 2f)
+                        fixedValue(breakpoint = 5f, key = B1, value = 2f)
                         identity(breakpoint = 25f, key = B2)
                     },
             )
@@ -176,7 +176,7 @@ class MotionSpecTest {
         val underTest =
             MotionSpec(
                 directionalMotionSpec(Spring) {
-                    constantValue(breakpoint = 10f, key = B1, value = 1f)
+                    fixedValue(breakpoint = 10f, key = B1, value = 1f)
                     identity(breakpoint = 20f, key = B2)
                 }
             )
@@ -191,7 +191,7 @@ class MotionSpecTest {
         val underTest =
             MotionSpec(
                 directionalMotionSpec(Spring) {
-                    constantValue(breakpoint = 10f, key = B1, value = 1f)
+                    fixedValue(breakpoint = 10f, key = B1, value = 1f)
                     identity(breakpoint = 20f, key = B2)
                 }
             )
@@ -208,7 +208,7 @@ class MotionSpecTest {
         val underTest =
             MotionSpec(
                     directionalMotionSpec(Spring) {
-                        constantValue(breakpoint = 10f, key = B1, value = 1f)
+                        fixedValue(breakpoint = 10f, key = B1, value = 1f)
                         identity(breakpoint = 20f, key = B2)
                     }
                 )
@@ -229,7 +229,7 @@ class MotionSpecTest {
         val underTest =
             MotionSpec(
                     directionalMotionSpec(Spring) {
-                        constantValue(breakpoint = 10f, key = B1, value = 1f)
+                        fixedValue(breakpoint = 10f, key = B1, value = 1f)
                         identity(breakpoint = 20f, key = B2)
                     }
                 )

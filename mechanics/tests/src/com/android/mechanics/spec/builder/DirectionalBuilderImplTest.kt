@@ -58,7 +58,7 @@ class DirectionalBuilderImplTest {
 
     @Test
     fun directionalSpec_mappingBuilder_setsDefaultSpring() {
-        val result = directionalMotionSpec(Spring) { constantValue(breakpoint = 10f, value = 20f) }
+        val result = directionalMotionSpec(Spring) { fixedValue(breakpoint = 10f, value = 20f) }
 
         assertThat(result).breakpoints().atPosition(10f).spring().isEqualTo(Spring)
     }
@@ -68,7 +68,7 @@ class DirectionalBuilderImplTest {
         val otherSpring = SpringParameters(stiffness = 10f, dampingRatio = 0.1f)
         val result =
             directionalMotionSpec(Spring) {
-                constantValue(breakpoint = 10f, value = 20f, spring = otherSpring)
+                fixedValue(breakpoint = 10f, value = 20f, spring = otherSpring)
             }
 
         assertThat(result).breakpoints().atPosition(10f).spring().isEqualTo(otherSpring)
@@ -76,7 +76,7 @@ class DirectionalBuilderImplTest {
 
     @Test
     fun directionalSpec_mappingBuilder_defaultsToNoGuarantee() {
-        val result = directionalMotionSpec(Spring) { constantValue(breakpoint = 10f, value = 20f) }
+        val result = directionalMotionSpec(Spring) { fixedValue(breakpoint = 10f, value = 20f) }
 
         assertThat(result).breakpoints().atPosition(10f).guarantee().isEqualTo(Guarantee.None)
     }
@@ -86,7 +86,7 @@ class DirectionalBuilderImplTest {
         val guarantee = Guarantee.InputDelta(10f)
         val result =
             directionalMotionSpec(Spring) {
-                constantValue(breakpoint = 10f, value = 20f, guarantee = guarantee)
+                fixedValue(breakpoint = 10f, value = 20f, guarantee = guarantee)
             }
 
         assertThat(result).breakpoints().atPosition(10f).guarantee().isEqualTo(guarantee)
@@ -96,11 +96,11 @@ class DirectionalBuilderImplTest {
     fun directionalSpec_mappingBuilder_jumpTo_setsAbsoluteValue() {
         val result =
             directionalMotionSpec(Spring, Mapping.Fixed(99f)) {
-                constantValue(breakpoint = 10f, value = 20f)
+                fixedValue(breakpoint = 10f, value = 20f)
             }
 
         assertThat(result).breakpoints().positions().containsExactly(10f)
-        assertThat(result).mappings().atOrAfter(10f).isConstantValue(20f)
+        assertThat(result).mappings().atOrAfter(10f).isFixedValue(20f)
     }
 
     @Test
@@ -108,22 +108,22 @@ class DirectionalBuilderImplTest {
         val result =
             directionalMotionSpec(Spring, Mapping.Linear(factor = 0.5f)) {
                 // At 10f the current value is 5f (10f * 0.5f)
-                constantValueFromCurrent(breakpoint = 10f, delta = 30f)
+                fixedValueFromCurrent(breakpoint = 10f, delta = 30f)
             }
 
         assertThat(result).breakpoints().positions().containsExactly(10f)
-        assertThat(result).mappings().atOrAfter(10f).isConstantValue(35f)
+        assertThat(result).mappings().atOrAfter(10f).isFixedValue(35f)
     }
 
     @Test
-    fun directionalSpec_mappingBuilder_continueWithConstantValue_usesSourceValue() {
+    fun directionalSpec_mappingBuilder_continueWithFixedValue_usesSourceValue() {
         val result =
             directionalMotionSpec(Spring, Mapping.Linear(factor = 0.5f)) {
                 // At 5f the current value is 2.5f (5f * 0.5f)
-                constantValueFromCurrent(breakpoint = 5f)
+                fixedValueFromCurrent(breakpoint = 5f)
             }
 
-        assertThat(result).mappings().atOrAfter(5f).isConstantValue(2.5f)
+        assertThat(result).mappings().atOrAfter(5f).isFixedValue(2.5f)
     }
 
     @Test
@@ -258,8 +258,7 @@ class DirectionalBuilderImplTest {
     fun builderContext_spatialDirectionalMotionSpec_defaultsToSpatialSpringAndIdentityMapping() {
         val context = FakeMotionSpecBuilderContext.Default
 
-        val result =
-            with(context) { spatialDirectionalMotionSpec { constantValue(0f, value = 1f) } }
+        val result = with(context) { spatialDirectionalMotionSpec { fixedValue(0f, value = 1f) } }
 
         assertThat(result).mappings().containsExactly(Mapping.Identity, Mapping.One).inOrder()
         assertThat(result).breakpoints().atPosition(0f).spring().isEqualTo(context.spatial.default)
@@ -269,8 +268,7 @@ class DirectionalBuilderImplTest {
     fun builderContext_effectsDirectionalMotionSpec_defaultsToEffectsSpringAndZeroMapping() {
         val context = FakeMotionSpecBuilderContext.Default
 
-        val result =
-            with(context) { effectsDirectionalMotionSpec { constantValue(0f, value = 1f) } }
+        val result = with(context) { effectsDirectionalMotionSpec { fixedValue(0f, value = 1f) } }
 
         assertThat(result).mappings().containsExactly(Mapping.Zero, Mapping.One).inOrder()
         assertThat(result).breakpoints().atPosition(0f).spring().isEqualTo(context.effects.default)

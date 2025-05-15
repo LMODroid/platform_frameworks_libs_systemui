@@ -130,7 +130,7 @@ class VerticalExpandContainerSpec(
         return with(density) {
             MotionSpec(
                 directionalMotionSpec(opacitySpring, initialMapping = Mapping.Zero) {
-                    constantValue(breakpoint = visibleHeight.toPx(), value = 1f)
+                    fixedValue(breakpoint = visibleHeight.toPx(), value = 1f)
                 }
             )
         }

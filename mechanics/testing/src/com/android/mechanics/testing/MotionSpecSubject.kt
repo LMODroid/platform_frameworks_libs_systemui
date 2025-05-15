@@ -261,7 +261,7 @@ internal constructor(failureMetadata: FailureMetadata, private val actual: Mappi
         check("input @ $in2").that(actual?.map(in2)).isEqualTo(out2)
     }
 
-    fun isConstantValue(value: Float) {
+    fun isFixedValue(value: Float) {
         when (actual) {
             is Mapping.Fixed -> check("fixed value").that(actual.value).isEqualTo(value)
             is Mapping.Linear -> {

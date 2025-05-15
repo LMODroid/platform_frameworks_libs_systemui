@@ -75,7 +75,7 @@ fun MotionBuilderContext.effectsDirectionalMotionSpec(
  *     target(breakpoint = 10f, from = 0f, to = 50f)
  *
  *     // At breakpoint 20: Jump +5, and constant value 55.
- *     constantValueFromCurrent(breakpoint = 20f, delta = 5f)
+ *     fixedValueFromCurrent(breakpoint = 20f, delta = 5f)
  *
  *     // At breakpoint 30: Jump to 40. Linear mapping using: progress_since_breakpoint * fraction.
  *     fractionalInput(breakpoint = 30f, from = 40f, fraction = 2f)
