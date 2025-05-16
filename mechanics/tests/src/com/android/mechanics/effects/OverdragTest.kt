@@ -21,11 +21,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.builder.MotionBuilderContext
 import com.android.mechanics.spec.builder.spatialMotionSpec
-import com.android.mechanics.testing.CapturedSemantics
+import com.android.mechanics.testing.CaptureTimeSeriesFn
 import com.android.mechanics.testing.ComposeMotionValueToolkit
 import com.android.mechanics.testing.FakeMotionSpecBuilderContext
+import com.android.mechanics.testing.FeatureCaptures
 import com.android.mechanics.testing.VerifyTimeSeriesResult
 import com.android.mechanics.testing.animateValueTo
+import com.android.mechanics.testing.defaultFeatureCaptures
 import com.android.mechanics.testing.goldenTest
 import com.android.mechanics.testing.input
 import com.android.mechanics.testing.nullableDataPoints
@@ -50,7 +52,7 @@ class OverdragTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Defaul
     fun overdrag_maxDirection_neverExceedsMaxOverdrag() {
         motion.goldenTest(
             spatialMotionSpec { after(10f, Overdrag(maxOverdrag = 20.dp)) },
-            semantics = CaptureOverdragSemantics,
+            capture = captureOverdragFeatures,
             verifyTimeSeries = {
                 assertThat(output.filter { it > 30 }).isEmpty()
                 VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden()
@@ -64,7 +66,7 @@ class OverdragTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Defaul
     fun overdrag_minDirection_neverExceedsMaxOverdrag() {
         motion.goldenTest(
             spatialMotionSpec { before(-10f, Overdrag(maxOverdrag = 20.dp)) },
-            semantics = CaptureOverdragSemantics,
+            capture = captureOverdragFeatures,
             initialDirection = InputDirection.Min,
             verifyTimeSeries = {
                 assertThat(output.filter { it < -30 }).isEmpty()
@@ -80,7 +82,7 @@ class OverdragTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Defaul
     fun overdrag_nonStandardBaseFunction() {
         motion.goldenTest(
             spatialMotionSpec(baseMapping = { -it }) { after(10f, Overdrag(maxOverdrag = 20.dp)) },
-            semantics = CaptureOverdragSemantics,
+            capture = captureOverdragFeatures,
             initialValue = 5f,
             verifyTimeSeries = {
                 assertThat(output.filter { it < -30 }).isEmpty()
@@ -98,7 +100,7 @@ class OverdragTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Defaul
                 before(-10f, Overdrag())
                 after(10f, Overdrag())
             },
-            semantics = CaptureOverdragSemantics,
+            capture = captureOverdragFeatures,
             verifyTimeSeries = {
                 val isOverdragging = input.map { abs(it) >= 10 }
                 val hasOverdragLimit = nullableDataPoints<Float>("overdragLimit").map { it != null }
@@ -113,13 +115,15 @@ class OverdragTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Defaul
     }
 
     companion object {
-        val CaptureOverdragSemantics =
-            listOf(
-                CapturedSemantics(
+        val captureOverdragFeatures: CaptureTimeSeriesFn = {
+            defaultFeatureCaptures()
+            feature(
+                FeatureCaptures.semantics(
                     Overdrag.Defaults.OverdragLimit,
                     DataPointTypes.float,
                     "overdragLimit",
                 )
             )
+        }
     }
 }

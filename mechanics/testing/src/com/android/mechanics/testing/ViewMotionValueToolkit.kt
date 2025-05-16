@@ -19,7 +19,6 @@
 package com.android.mechanics.testing
 
 import android.animation.AnimatorTestRule
-import com.android.mechanics.debug.FrameData
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.MotionSpec
 import com.android.mechanics.view.DistanceGestureContext
@@ -49,12 +48,12 @@ class ViewMotionValueToolkit(private val animatorTestRule: AnimatorTestRule) :
         motionTestRule: MotionTestRule<*>,
         spec: MotionSpec,
         createDerived: (underTest: ViewMotionValue) -> List<ViewMotionValue>,
-        semantics: List<CapturedSemantics<*>>,
         initialValue: Float,
         initialDirection: InputDirection,
         directionChangeSlop: Float,
         stableThreshold: Float,
         verifyTimeSeries: TimeSeries.() -> VerifyTimeSeriesResult,
+        capture: CaptureTimeSeriesFn,
         testInput: suspend InputScope<ViewMotionValue, DistanceGestureContext>.() -> Unit,
     ) = runTest {
         val frameEmitter = MutableStateFlow<Long>(0)
@@ -74,17 +73,14 @@ class ViewMotionValueToolkit(private val animatorTestRule: AnimatorTestRule) :
             }
 
         val underTest = testHarness.underTest
-        val inspectors = buildMap { put(underTest, underTest.debugInspector()) }
+        val motionValueCapture = MotionValueCapture(underTest.debugInspector())
         val recordingJob = launch { testInput.invoke(testHarness) }
 
         val frameIds = mutableListOf<FrameId>()
-        val frameData = mutableMapOf<ViewMotionValue, MutableList<FrameData>>()
 
         fun recordFrame(frameId: TimestampFrameId) {
             frameIds.add(frameId)
-            inspectors.forEach { (motionValue, inspector) ->
-                frameData.computeIfAbsent(motionValue) { mutableListOf() }.add(inspector.frame)
-            }
+            motionValueCapture.captureCurrentFrame(capture)
         }
 
         runBlocking(Dispatchers.Main) {
@@ -99,10 +95,9 @@ class ViewMotionValueToolkit(private val animatorTestRule: AnimatorTestRule) :
                 runCurrent()
             }
 
-            val timeSeries =
-                createTimeSeries(frameIds, listOf("" to frameData.values.first()), semantics)
+            val timeSeries = createTimeSeries(frameIds, listOf(motionValueCapture))
 
-            inspectors.values.forEach { it.dispose() }
+            motionValueCapture.debugger.dispose()
             underTest.dispose()
             verifyTimeSeries(motionTestRule, timeSeries, verifyTimeSeries)
         }

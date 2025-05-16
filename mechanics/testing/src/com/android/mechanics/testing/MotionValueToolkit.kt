@@ -16,10 +16,10 @@
 
 package com.android.mechanics.testing
 
-import com.android.mechanics.debug.FrameData
+import com.android.mechanics.MotionValue
+import com.android.mechanics.debug.DebugInspector
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.MotionSpec
-import com.android.mechanics.spec.SemanticKey
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.sign
@@ -27,11 +27,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import platform.test.motion.MotionTestRule
 import platform.test.motion.RecordedMotion.Companion.create
 import platform.test.motion.golden.DataPoint
-import platform.test.motion.golden.DataPointType
 import platform.test.motion.golden.Feature
 import platform.test.motion.golden.FrameId
 import platform.test.motion.golden.TimeSeries
-import platform.test.motion.golden.asDataPoint
+import platform.test.motion.golden.TimeSeriesCaptureScope
 
 /**
  * Records and verifies a timeseries of the [MotionValue]'s output.
@@ -40,7 +39,6 @@ import platform.test.motion.golden.asDataPoint
  * [MotionValue] input over time.
  *
  * @param spec The initial [MotionSpec]
- * @param semantics The list of semantic values to capture in the golden
  * @param initialValue The initial value of the [MotionValue]
  * @param initialDirection The initial [InputDirection] of the [MotionValue]
  * @param directionChangeSlop the minimum distance for the input to change in the opposite direction
@@ -51,6 +49,8 @@ import platform.test.motion.golden.asDataPoint
  *   series. If the function returns `SkipGoldenVerification`, the timeseries won`t be compared to a
  *   golden.
  * @param createDerived (experimental) Creates derived MotionValues
+ * @param capture The features to capture on each motion value. See [defaultFeatureCaptures] for
+ *   defaults.
  * @param testInput Controls the MotionValue during the test. The timeseries is being recorded until
  *   the function completes.
  * @see ComposeMotionValueToolkit
@@ -62,7 +62,6 @@ fun <
     GestureContextType,
 > MotionTestRule<T>.goldenTest(
     spec: MotionSpec,
-    semantics: List<CapturedSemantics<*>> = emptyList(),
     initialValue: Float = 0f,
     initialDirection: InputDirection = InputDirection.Max,
     directionChangeSlop: Float = 5f,
@@ -71,18 +70,19 @@ fun <
         VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden()
     },
     createDerived: (underTest: MotionValueType) -> List<MotionValueType> = { emptyList() },
+    capture: CaptureTimeSeriesFn = defaultFeatureCaptures,
     testInput: suspend (InputScope<MotionValueType, GestureContextType>).() -> Unit,
 ) {
     toolkit.goldenTest(
         this,
         spec,
         createDerived,
-        semantics,
         initialValue,
         initialDirection,
         directionChangeSlop,
         stableThreshold,
         verifyTimeSeries,
+        capture,
         testInput,
     )
 }
@@ -149,15 +149,16 @@ interface VerifyTimeSeriesResult {
         VerifyTimeSeriesResult
 }
 
-/** A semantic value to capture in the golden. */
-class CapturedSemantics<T>(
-    val key: SemanticKey<T>,
-    val dataPointType: DataPointType<T & Any>,
-    val name: String = key.debugLabel,
-) {
-    fun toDataPoint(frameData: FrameData): DataPoint<T> {
-        return dataPointType.makeDataPoint(frameData.semantic(key))
-    }
+typealias CaptureTimeSeriesFn = TimeSeriesCaptureScope<DebugInspector>.() -> Unit
+
+/** Default feature captures. */
+val defaultFeatureCaptures: CaptureTimeSeriesFn = {
+    feature(FeatureCaptures.input)
+    feature(FeatureCaptures.gestureDirection)
+    feature(FeatureCaptures.output)
+    feature(FeatureCaptures.outputTarget)
+    feature(FeatureCaptures.springParameters, name = "outputSpring")
+    feature(FeatureCaptures.isStable)
 }
 
 sealed class MotionValueToolkit<MotionValueType, GestureContextType> {
@@ -165,53 +166,30 @@ sealed class MotionValueToolkit<MotionValueType, GestureContextType> {
         motionTestRule: MotionTestRule<*>,
         spec: MotionSpec,
         createDerived: (underTest: MotionValueType) -> List<MotionValueType>,
-        semantics: List<CapturedSemantics<*>>,
         initialValue: Float,
         initialDirection: InputDirection,
         directionChangeSlop: Float,
         stableThreshold: Float,
         verifyTimeSeries: TimeSeries.() -> VerifyTimeSeriesResult,
+        capture: CaptureTimeSeriesFn,
         testInput: suspend (InputScope<MotionValueType, GestureContextType>).() -> Unit,
     )
 
-    protected fun createTimeSeries(
+    internal fun createTimeSeries(
         frameIds: List<FrameId>,
-        frameData: List<Pair<String, List<FrameData>>>,
-        semantics: List<CapturedSemantics<*>>,
+        motionValueCaptures: List<MotionValueCapture>,
     ): TimeSeries {
         return TimeSeries(
             frameIds.toList(),
-            buildList {
-                frameData.forEach { (prefix, frames) ->
-                    add(Feature("${prefix}input", frames.map { it.input.asDataPoint() }))
-                    add(
-                        Feature(
-                            "${prefix}gestureDirection",
-                            frames.map { it.gestureDirection.name.asDataPoint() },
-                        )
-                    )
-                    add(Feature("${prefix}output", frames.map { it.output.asDataPoint() }))
-                    add(
-                        Feature(
-                            "${prefix}outputTarget",
-                            frames.map { it.outputTarget.asDataPoint() },
-                        )
-                    )
-                    add(
-                        Feature(
-                            "${prefix}outputSpring",
-                            frames.map { it.springParameters.asDataPoint() },
-                        )
-                    )
-                    add(Feature("${prefix}isStable", frames.map { it.isStable.asDataPoint() }))
-
-                    semantics.forEach { add(Feature(it.name, frames.map(it::toDataPoint))) }
+            motionValueCaptures.flatMap { motionValueCapture ->
+                motionValueCapture.propertyCollector.entries.map { (name, dataPoints) ->
+                    Feature("${motionValueCapture.prefix}$name", dataPoints)
                 }
             },
         )
     }
 
-    protected fun verifyTimeSeries(
+    internal fun verifyTimeSeries(
         motionTestRule: MotionTestRule<*>,
         timeSeries: TimeSeries,
         verificationFn: TimeSeries.() -> VerifyTimeSeriesResult,
@@ -239,5 +217,14 @@ sealed class MotionValueToolkit<MotionValueType, GestureContextType> {
 
     companion object {
         val FrameDuration = 16.milliseconds
+    }
+}
+
+internal class MotionValueCapture(val debugger: DebugInspector, val prefix: String = "") {
+    val propertyCollector = mutableMapOf<String, MutableList<DataPoint<*>>>()
+    val captureScope = TimeSeriesCaptureScope(debugger, propertyCollector)
+
+    fun captureCurrentFrame(captureFn: CaptureTimeSeriesFn) {
+        captureFn(captureScope)
     }
 }

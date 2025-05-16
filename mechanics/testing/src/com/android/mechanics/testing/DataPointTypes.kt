@@ -17,12 +17,16 @@
 package com.android.mechanics.testing
 
 import com.android.mechanics.spring.SpringParameters
+import com.android.mechanics.spring.SpringState
 import com.android.mechanics.testing.DataPointTypes.springParameters
+import com.android.mechanics.testing.DataPointTypes.springState
 import org.json.JSONObject
 import platform.test.motion.golden.DataPointType
 import platform.test.motion.golden.UnknownTypeException
 
 fun SpringParameters.asDataPoint() = springParameters.makeDataPoint(this)
+
+fun SpringState.asDataPoint() = springState.makeDataPoint(this)
 
 object DataPointTypes {
     val springParameters: DataPointType<SpringParameters> =
@@ -40,6 +44,25 @@ object DataPointTypes {
                 JSONObject().apply {
                     put("stiffness", it.stiffness)
                     put("dampingRatio", it.dampingRatio)
+                }
+            },
+        )
+
+    val springState: DataPointType<SpringState> =
+        DataPointType(
+            "springState",
+            jsonToValue = {
+                with(it as? JSONObject ?: throw UnknownTypeException()) {
+                    SpringState(
+                        getDouble("displacement").toFloat(),
+                        getDouble("velocity").toFloat(),
+                    )
+                }
+            },
+            valueToJson = {
+                JSONObject().apply {
+                    put("displacement", it.displacement)
+                    put("velocity", it.velocity)
                 }
             },
         )

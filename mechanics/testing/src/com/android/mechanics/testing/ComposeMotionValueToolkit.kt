@@ -24,7 +24,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import com.android.mechanics.DistanceGestureContext
 import com.android.mechanics.MotionValue
-import com.android.mechanics.debug.FrameData
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.MotionSpec
 import kotlinx.coroutines.Dispatchers
@@ -50,12 +49,12 @@ data object ComposeMotionValueToolkit : MotionValueToolkit<MotionValue, Distance
         motionTestRule: MotionTestRule<*>,
         spec: MotionSpec,
         createDerived: (underTest: MotionValue) -> List<MotionValue>,
-        semantics: List<CapturedSemantics<*>>,
         initialValue: Float,
         initialDirection: InputDirection,
         directionChangeSlop: Float,
         stableThreshold: Float,
         verifyTimeSeries: TimeSeries.() -> VerifyTimeSeriesResult,
+        capture: CaptureTimeSeriesFn,
         testInput: suspend InputScope<MotionValue, DistanceGestureContext>.() -> Unit,
     ) = runMonotonicClockTest {
         val frameEmitter = MutableStateFlow<Long>(0)
@@ -73,21 +72,20 @@ data object ComposeMotionValueToolkit : MotionValueToolkit<MotionValue, Distance
         val underTest = testHarness.underTest
         val derived = testHarness.derived
 
-        val motionValues = derived + underTest
+        val motionValueCaptures = buildList {
+            add(MotionValueCapture(underTest.debugInspector()))
+            derived.forEach { add(MotionValueCapture(it.debugInspector(), "${it.label}-")) }
+        }
 
-        val inspectors = motionValues.map { it to it.debugInspector() }.toMap()
-        val keepRunningJobs = motionValues.map { launch { it.keepRunning() } }
+        val keepRunningJobs = (derived + underTest).map { launch { it.keepRunning() } }
 
         val recordingJob = launch { testInput.invoke(testHarness) }
 
         val frameIds = mutableListOf<FrameId>()
-        val frameData = mutableMapOf<MotionValue, MutableList<FrameData>>()
 
         fun recordFrame(frameId: TimestampFrameId) {
             frameIds.add(frameId)
-            inspectors.forEach { (motionValue, inspector) ->
-                frameData.computeIfAbsent(motionValue) { mutableListOf() }.add(inspector.frame)
-            }
+            motionValueCaptures.forEach { it.captureCurrentFrame(capture) }
         }
         runBlocking(Dispatchers.Main) {
             val startFrameTime = testScheduler.currentTime
@@ -110,19 +108,8 @@ data object ComposeMotionValueToolkit : MotionValueToolkit<MotionValue, Distance
             }
         }
 
-        val timeSeries =
-            createTimeSeries(
-                frameIds,
-                frameData.entries
-                    .map { (motionValue, frameData) ->
-                        val prefix = if (motionValue == underTest) "" else "${motionValue.label}-"
-                        prefix to frameData
-                    }
-                    .sortedBy { it.first },
-                semantics,
-            )
-
-        inspectors.values.forEach { it.dispose() }
+        val timeSeries = createTimeSeries(frameIds, motionValueCaptures)
+        motionValueCaptures.forEach { it.debugger.dispose() }
         keepRunningJobs.forEach { it.cancel() }
         verifyTimeSeries(motionTestRule, timeSeries, verifyTimeSeries)
     }

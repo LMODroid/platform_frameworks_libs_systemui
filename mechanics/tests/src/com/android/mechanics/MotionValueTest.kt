@@ -38,14 +38,15 @@ import com.android.mechanics.spec.builder.DirectionalBuilderScope
 import com.android.mechanics.spec.builder.MotionBuilderContext
 import com.android.mechanics.spec.builder.directionalMotionSpec
 import com.android.mechanics.spec.with
-import com.android.mechanics.testing.CapturedSemantics
 import com.android.mechanics.testing.ComposeMotionValueToolkit
 import com.android.mechanics.testing.FakeMotionSpecBuilderContext
+import com.android.mechanics.testing.FeatureCaptures
 import com.android.mechanics.testing.VerifyTimeSeriesResult.AssertTimeSeriesMatchesGolden
 import com.android.mechanics.testing.VerifyTimeSeriesResult.SkipGoldenVerification
 import com.android.mechanics.testing.animateValueTo
 import com.android.mechanics.testing.animatedInputSequence
 import com.android.mechanics.testing.dataPoints
+import com.android.mechanics.testing.defaultFeatureCaptures
 import com.android.mechanics.testing.goldenTest
 import com.android.mechanics.testing.input
 import com.android.mechanics.testing.isStable
@@ -59,7 +60,7 @@ import org.junit.rules.ExternalResource
 import org.junit.runner.RunWith
 import platform.test.motion.MotionTestRule
 import platform.test.motion.compose.runMonotonicClockTest
-import platform.test.motion.golden.DataPointTypes.string
+import platform.test.motion.golden.DataPointTypes
 import platform.test.motion.testing.createGoldenPathManager
 
 @RunWith(AndroidJUnit4::class)
@@ -407,7 +408,13 @@ class MotionValueTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Def
                 fixedValue(2f, 2f, semantics = listOf(s1 with "two"))
             }
 
-        motion.goldenTest(spec = spec, semantics = listOf(CapturedSemantics(s1, string))) {
+        motion.goldenTest(
+            spec = spec,
+            capture = {
+                defaultFeatureCaptures()
+                feature(FeatureCaptures.semantics(s1, DataPointTypes.string))
+            },
+        ) {
             animateValueTo(3f, changePerFrame = .2f)
             awaitStable()
         }
