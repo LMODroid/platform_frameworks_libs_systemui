@@ -126,6 +126,8 @@ data class MotionSpec(
             ?: segmentAtInput(newPosition, newDirection)
     }
 
+    override fun toString() = toDebugString()
+
     companion object {
         /**
          * Default spring parameters for the reset spring. Matches the Fast Spatial spring of the
@@ -223,6 +225,8 @@ data class DirectionalMotionSpec(
 
         return result
     }
+
+    override fun toString() = toDebugString()
 
     companion object {
         /* Empty spec, the full input domain is mapped to output using [Mapping.identity]. */
