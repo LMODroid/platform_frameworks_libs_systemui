@@ -255,6 +255,17 @@ class DirectionalBuilderImplTest {
     }
 
     @Test
+    fun directionalSpec_semantics_lateCompletedSegmentsRetainSemantics() {
+        val result =
+            directionalMotionSpec(Spring, semantics = listOf(S1 with "One")) {
+                targetFromCurrent(breakpoint = 0f, to = 10f, semantics = listOf(S1 with "Two"))
+                identity(breakpoint = 1f, semantics = listOf(S1 with "Three"))
+            }
+        assertThat(result).mappings().hasSize(3)
+        assertThat(result).semantics().withKey(S1).containsExactly("One", "Two", "Three").inOrder()
+    }
+
+    @Test
     fun builderContext_spatialDirectionalMotionSpec_defaultsToSpatialSpringAndIdentityMapping() {
         val context = FakeMotionSpecBuilderContext.Default
 

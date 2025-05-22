@@ -102,12 +102,8 @@ internal open class DirectionalBuilderImpl(
             }
         }
 
-        toBreakpointImpl(atPosition, key)
+        toBreakpointImpl(atPosition, key, semantics)
         doAddBreakpointImpl(springSpec, guarantee)
-
-        if (key != BreakpointKey.MaxLimit) {
-            applySemantics(semantics)
-        }
     }
 
     fun finalizeBuilderFn(breakpoint: Breakpoint) =
@@ -140,8 +136,7 @@ internal open class DirectionalBuilderImpl(
         key: BreakpointKey,
         semantics: List<SemanticValue<*>>,
     ) {
-        applySemantics(semantics)
-        toBreakpointImpl(breakpoint, key)
+        toBreakpointImpl(breakpoint, key, semantics)
         jumpToImpl(from, spring, guarantee)
         continueWithTargetValueImpl(to)
     }
@@ -155,8 +150,7 @@ internal open class DirectionalBuilderImpl(
         key: BreakpointKey,
         semantics: List<SemanticValue<*>>,
     ) {
-        applySemantics(semantics)
-        toBreakpointImpl(breakpoint, key)
+        toBreakpointImpl(breakpoint, key, semantics)
         jumpByImpl(delta, spring, guarantee)
         continueWithTargetValueImpl(to)
     }
@@ -170,8 +164,7 @@ internal open class DirectionalBuilderImpl(
         key: BreakpointKey,
         semantics: List<SemanticValue<*>>,
     ): CanBeLastSegment {
-        applySemantics(semantics)
-        toBreakpointImpl(breakpoint, key)
+        toBreakpointImpl(breakpoint, key, semantics)
         jumpToImpl(from, spring, guarantee)
         continueWithFractionalInputImpl(fraction)
         return CanBeLastSegmentImpl
@@ -186,8 +179,7 @@ internal open class DirectionalBuilderImpl(
         key: BreakpointKey,
         semantics: List<SemanticValue<*>>,
     ): CanBeLastSegment {
-        applySemantics(semantics)
-        toBreakpointImpl(breakpoint, key)
+        toBreakpointImpl(breakpoint, key, semantics)
         jumpByImpl(delta, spring, guarantee)
         continueWithFractionalInputImpl(fraction)
         return CanBeLastSegmentImpl
@@ -201,8 +193,7 @@ internal open class DirectionalBuilderImpl(
         key: BreakpointKey,
         semantics: List<SemanticValue<*>>,
     ): CanBeLastSegment {
-        applySemantics(semantics)
-        toBreakpointImpl(breakpoint, key)
+        toBreakpointImpl(breakpoint, key, semantics)
         jumpToImpl(value, spring, guarantee)
         continueWithFixedValueImpl()
         return CanBeLastSegmentImpl
@@ -216,8 +207,7 @@ internal open class DirectionalBuilderImpl(
         key: BreakpointKey,
         semantics: List<SemanticValue<*>>,
     ): CanBeLastSegment {
-        applySemantics(semantics)
-        toBreakpointImpl(breakpoint, key)
+        toBreakpointImpl(breakpoint, key, semantics)
         jumpByImpl(delta, spring, guarantee)
         continueWithFixedValueImpl()
         return CanBeLastSegmentImpl
@@ -231,19 +221,9 @@ internal open class DirectionalBuilderImpl(
         semantics: List<SemanticValue<*>>,
         mapping: Mapping,
     ): CanBeLastSegment {
-        applySemantics(semantics)
-        toBreakpointImpl(breakpoint, key)
+        toBreakpointImpl(breakpoint, key, semantics)
         continueWithImpl(mapping, spring, guarantee)
         return CanBeLastSegmentImpl
-    }
-
-    private fun applySemantics(toApply: List<SemanticValue<*>>) {
-        toApply.forEach { (key, value) ->
-            getSemantics(key).apply {
-                // applySemantics is called BEFORE adding the mapping
-                set(mappings.size, value)
-            }
-        }
     }
 
     private fun continueWithTargetValueImpl(target: Float) {
@@ -286,7 +266,11 @@ internal open class DirectionalBuilderImpl(
         mappings.add(mapping)
     }
 
-    private fun toBreakpointImpl(atPosition: Float, key: BreakpointKey) {
+    private fun toBreakpointImpl(
+        atPosition: Float,
+        key: BreakpointKey,
+        semantics: List<SemanticValue<*>>,
+    ) {
         check(breakpointPosition.isNaN())
         check(breakpointKey == null)
 
@@ -324,6 +308,13 @@ internal open class DirectionalBuilderImpl(
 
         breakpointPosition = atPosition
         breakpointKey = key
+
+        semantics.forEach { (key, value) ->
+            getSemantics(key).apply {
+                // Last segment is guaranteed to be completed
+                set(mappings.size, value)
+            }
+        }
     }
 
     private fun doAddBreakpointImpl(
