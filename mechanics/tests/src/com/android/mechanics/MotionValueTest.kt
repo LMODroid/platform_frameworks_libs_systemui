@@ -112,6 +112,13 @@ class MotionValueTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Def
         }
 
     @Test
+    fun segmentChange_inMaxDirection_zeroDelta() =
+        motion.goldenTest(spec = specBuilder(Mapping.Zero) { fixedValueFromCurrent(0.5f) }) {
+            animateValueTo(1f, changePerFrame = 0.5f)
+            awaitStable()
+        }
+
+    @Test
     fun segmentChange_inMinDirection_animatedWhenReachingBreakpoint() =
         motion.goldenTest(
             initialValue = 2f,
@@ -198,9 +205,6 @@ class MotionValueTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Def
         ) {
             animateValueTo(21f, changePerFrame = 3f)
             awaitStable()
-
-            // TODO(b/420622452) This test should not produce a WTF log.
-            wtfLog.removeLoggedFailures()
         }
 
     @Test
@@ -214,9 +218,6 @@ class MotionValueTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Def
         ) {
             animateValueTo(30f, changePerFrame = 3f)
             awaitStable()
-
-            // TODO(b/420622452) This test should not produce a WTF log.
-            wtfLog.removeLoggedFailures()
         }
 
     @Test
@@ -248,9 +249,6 @@ class MotionValueTest : MotionBuilderContext by FakeMotionSpecBuilderContext.Def
             awaitStable()
             animateValueTo(3f)
             awaitStable()
-
-            // TODO(b/420622452) This test should not produce a WTF log.
-            wtfLog.removeLoggedFailures()
         }
 
     @Test
