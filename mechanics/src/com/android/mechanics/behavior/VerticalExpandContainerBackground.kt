@@ -34,6 +34,7 @@ import androidx.compose.ui.util.fastCoerceAtLeast
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.lerp
 import kotlin.math.min
+import kotlin.math.round
 
 /**
  * Draws the background of a vertically container, and applies clipping to it.
@@ -134,12 +135,13 @@ internal class EdgeContainerExpansionBackgroundNode(
         val radius = height.fastCoerceIn(spec.minRadius.toPx(), spec.radius.toPx())
 
         // Draw (at most) the bottom half of the rounded corner rectangle, aligned to the bottom.
-        val upperHeight = height - radius
+        // Round upper height to the closest integer to avoid to avoid a hairline gap being visible
+        // due to the two rectangles overlapping.
+        val upperHeight = round((height - radius)).fastCoerceAtLeast(0f)
 
         // The rounded rect is drawn at 2x the radius height, to avoid smaller corner radii.
-        // The clipRect limits this to the relevant part (-1 to avoid a hairline gap being visible
-        // between this and the fill below.
-        clipRect(top = (upperHeight - 1).fastCoerceAtLeast(0f)) {
+        // The clipRect limits this to the relevant part between this and the fill below.
+        clipRect(top = upperHeight) {
             drawRoundRect(
                 color = backgroundColor,
                 cornerRadius = CornerRadius(radius),
